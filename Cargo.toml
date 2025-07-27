@@ -1,0 +1,30 @@
+[package]
+name = "dnd-scheduler-bot"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A Telegram bot for scheduling D&D sessions"
+
+[[bin]]
+name = "dnd-scheduler-bot"
+path = "src/main.rs"
+
+[[bin]]
+name = "migrate"
+path = "src/bin/migrate.rs"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+teloxide = { version = "0.12", features = ["macros", "sqlite-storage"] }
+sqlx = { version = "0.6", features = ["macros", "sqlite", "chrono", "uuid"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio-cron-scheduler = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+dotenvy = "0.15"
