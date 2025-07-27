@@ -2,7 +2,7 @@ use tokio_cron_scheduler::{JobScheduler, Job};
 use chrono::{Utc, Duration};
 use teloxide::{Bot, prelude::*};
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::datetime::format_datetime;
+use crate::utils::{datetime::format_datetime, markdown::escape_markdown};
 use std::sync::Arc;
 
 pub struct ReminderService {
@@ -205,24 +205,3 @@ async fn mark_reminder_sent(
     Ok(())
 }
 
-// Helper function to escape markdown characters
-fn escape_markdown(text: &str) -> String {
-    text.replace('_', "\\_")
-        .replace('*', "\\*")
-        .replace('[', "\\[")
-        .replace(']', "\\]")
-        .replace('(', "\\(")
-        .replace(')', "\\)")
-        .replace('~', "\\~")
-        .replace('`', "\\`")
-        .replace('>', "\\>")
-        .replace('#', "\\#")
-        .replace('+', "\\+")
-        .replace('-', "\\-")
-        .replace('=', "\\=")
-        .replace('|', "\\|")
-        .replace('{', "\\{")
-        .replace('}', "\\}")
-        .replace('.', "\\.")
-        .replace('!', "\\!")
-}

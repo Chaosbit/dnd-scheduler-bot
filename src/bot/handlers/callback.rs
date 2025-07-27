@@ -2,7 +2,7 @@ use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode};
 use crate::database::connection::DatabaseManager;
 use crate::database::models::*;
-use crate::utils::datetime::format_datetime;
+use crate::utils::{datetime::format_datetime, markdown::escape_markdown};
 use chrono::Utc;
 use std::collections::HashMap;
 
@@ -171,27 +171,7 @@ async fn update_session_message(
 }
 
 // Helper function to escape markdown characters
-pub fn escape_markdown(text: &str) -> String {
-    text.replace('_', "\\_")
-        .replace('*', "\\*")
-        .replace('[', "\\[")
-        .replace(']', "\\]")
-        .replace('(', "\\(")
-        .replace(')', "\\)")
-        .replace('~', "\\~")
-        .replace('`', "\\`")
-        .replace('>', "\\>")
-        .replace('#', "\\#")
-        .replace('+', "\\+")
-        .replace('-', "\\-")
-        .replace('=', "\\=")
-        .replace('|', "\\|")
-        .replace('{', "\\{")
-        .replace('}', "\\}")
-        .replace('.', "\\.")
-        .replace('!', "\\!")
-}
-
+pub 
 async fn handle_settings_callback(
     bot: Bot,
     q: CallbackQuery,

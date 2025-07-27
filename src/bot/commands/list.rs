@@ -1,6 +1,6 @@
 use teloxide::prelude::*;
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::datetime::format_datetime;
+use crate::utils::{datetime::format_datetime, markdown::escape_markdown};
 use chrono::Utc;
 use std::collections::HashMap;
 
@@ -154,24 +154,3 @@ async fn get_sessions_by_group(
     .await
 }
 
-// Helper function to escape markdown characters
-pub fn escape_markdown(text: &str) -> String {
-    text.replace('_', "\\_")
-        .replace('*', "\\*")
-        .replace('[', "\\[")
-        .replace(']', "\\]")
-        .replace('(', "\\(")
-        .replace(')', "\\)")
-        .replace('~', "\\~")
-        .replace('`', "\\`")
-        .replace('>', "\\>")
-        .replace('#', "\\#")
-        .replace('+', "\\+")
-        .replace('-', "\\-")
-        .replace('=', "\\=")
-        .replace('|', "\\|")
-        .replace('{', "\\{")
-        .replace('}', "\\}")
-        .replace('.', "\\.")
-        .replace('!', "\\!")
-}

@@ -1,4 +1,4 @@
-use dnd_scheduler_bot::bot::commands::list::escape_markdown;
+use dnd_scheduler_bot::utils::markdown::escape_markdown;
 
 #[test]
 fn test_list_escape_markdown_basic() {

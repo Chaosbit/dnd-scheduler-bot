@@ -1,4 +1,4 @@
-use dnd_scheduler_bot::bot::handlers::callback::escape_markdown;
+use dnd_scheduler_bot::utils::markdown::escape_markdown;
 
 #[test]
 fn test_escape_markdown_basic() {

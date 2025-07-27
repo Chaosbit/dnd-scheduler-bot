@@ -1,7 +1,7 @@
 use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::datetime::{parse_datetime, format_datetime};
+use crate::utils::{datetime::{parse_datetime, format_datetime}, markdown::escape_markdown};
 use chrono::Utc;
 
 pub async fn handle_schedule(
@@ -115,23 +115,3 @@ async fn update_session_message_id(
 }
 
 // Helper function to escape markdown characters
-fn escape_markdown(text: &str) -> String {
-    text.replace('_', "\\_")
-        .replace('*', "\\*")
-        .replace('[', "\\[")
-        .replace(']', "\\]")
-        .replace('(', "\\(")
-        .replace(')', "\\)")
-        .replace('~', "\\~")
-        .replace('`', "\\`")
-        .replace('>', "\\>")
-        .replace('#', "\\#")
-        .replace('+', "\\+")
-        .replace('-', "\\-")
-        .replace('=', "\\=")
-        .replace('|', "\\|")
-        .replace('{', "\\{")
-        .replace('}', "\\}")
-        .replace('.', "\\.")
-        .replace('!', "\\!")
-}

@@ -104,7 +104,14 @@ pub async fn handle_confirm(
             }
             
             // Find the confirmed option for display
-            let confirmed_option = options.iter().find(|o| o.id == option_id).unwrap();
+            let confirmed_option = match options.iter().find(|o| o.id == option_id) {
+                Some(option) => option,
+                None => {
+                    tracing::error!("Confirmed option not found in session options");
+                    bot.send_message(msg.chat.id, "❌ Error: Confirmed option not found.").await?;
+                    return Ok(());
+                }
+            };
             let datetime_str = chrono::DateTime::parse_from_rfc3339(&confirmed_option.datetime)
                 .map(|dt| format_datetime(&dt.with_timezone(&Utc)))
                 .unwrap_or_else(|_| confirmed_option.datetime.clone());
