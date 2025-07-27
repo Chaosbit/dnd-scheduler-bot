@@ -73,24 +73,65 @@ pub async fn handle_schedule(
     
     let keyboard = InlineKeyboardMarkup::new(keyboard_rows);
     
-    let message_text = format!(
-        "🎲 **{}**\n\nSelect your availability for each option:\n{}",
-        title,
-        session_options.iter().enumerate()
-            .map(|(i, option)| {
-                let datetime_str = chrono::DateTime::parse_from_rfc3339(&option.datetime)
-                    .map(|dt| format_datetime(&dt.with_timezone(&Utc)))
-                    .unwrap_or_else(|_| option.datetime.clone());
-                format!("{}. {}", i + 1, datetime_str)
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
+    let mut message_text = format!("🎲 **{}**\n\nSelect your availability for each option:\n\n", title);
     
-    bot.send_message(msg.chat.id, message_text)
+    for (i, option) in session_options.iter().enumerate() {
+        let datetime_str = chrono::DateTime::parse_from_rfc3339(&option.datetime)
+            .map(|dt| format_datetime(&dt.with_timezone(&Utc)))
+            .unwrap_or_else(|_| option.datetime.clone());
+        
+        message_text.push_str(&format!("**{}\\. {}**\n", i + 1, escape_markdown(&datetime_str)));
+        message_text.push_str("✅ 0 • ❌ 0 • ❓ 0\n\n");
+    }
+    
+    let sent_message = bot.send_message(msg.chat.id, message_text)
         .reply_markup(keyboard)
         .parse_mode(teloxide::types::ParseMode::MarkdownV2)
         .await?;
     
+    // Store the message ID in the session for future updates
+    if let Err(e) = update_session_message_id(&db.pool, &session.id, sent_message.id.0).await {
+        tracing::warn!("Failed to store message ID: {}", e);
+    }
+    
     Ok(())
+}
+
+async fn update_session_message_id(
+    pool: &sqlx::SqlitePool,
+    session_id: &str,
+    message_id: i32,
+) -> Result<(), sqlx::Error> {
+    let message_id_i64 = message_id as i64;
+    sqlx::query!(
+        "UPDATE sessions SET message_id = ? WHERE id = ?",
+        message_id_i64,
+        session_id
+    )
+    .execute(pool)
+    .await?;
+    
+    Ok(())
+}
+
+// Helper function to escape markdown characters
+fn escape_markdown(text: &str) -> String {
+    text.replace('_', "\\_")
+        .replace('*', "\\*")
+        .replace('[', "\\[")
+        .replace(']', "\\]")
+        .replace('(', "\\(")
+        .replace(')', "\\)")
+        .replace('~', "\\~")
+        .replace('`', "\\`")
+        .replace('>', "\\>")
+        .replace('#', "\\#")
+        .replace('+', "\\+")
+        .replace('-', "\\-")
+        .replace('=', "\\=")
+        .replace('|', "\\|")
+        .replace('{', "\\{")
+        .replace('}', "\\}")
+        .replace('.', "\\.")
+        .replace('!', "\\!")
 }

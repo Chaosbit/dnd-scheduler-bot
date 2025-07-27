@@ -1,4 +1,8 @@
 pub mod schedule;
+pub mod session_management;
+pub mod list;
+pub mod settings;
+pub mod stats;
 
 use teloxide::utils::command::BotCommands;
 
@@ -11,6 +15,14 @@ pub enum Command {
     Start,
     #[command(description = "Create a new session poll", parse_with = "split")]
     Schedule { title: String, options: String },
+    #[command(description = "Confirm a session and set it as final")]
+    Confirm { session_id: String },
+    #[command(description = "Cancel a session")]
+    Cancel { session_id: String },
+    #[command(description = "Set a deadline for responses", parse_with = "split")]
+    Deadline { session_id: String, datetime: String },
+    #[command(description = "List active sessions")]
+    List,
     #[command(description = "Configure group settings")]
     Settings,
     #[command(description = "Show attendance statistics")]

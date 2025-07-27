@@ -118,3 +118,158 @@ pub fn format_datetime(dt: &DateTime<Utc>) -> String {
     // European format: "Monday, 1 December at 19:30"
     dt.format("%A, %d %B at %H:%M").to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Timelike};
+
+    #[test]
+    fn test_extract_time_24h_colon_format() {
+        assert_eq!(extract_time_24h("friday 19:30"), Some((19, 30)));
+        assert_eq!(extract_time_24h("monday 14:00"), Some((14, 0)));
+        assert_eq!(extract_time_24h("08:45"), Some((8, 45)));
+        assert_eq!(extract_time_24h("23:59"), Some((23, 59)));
+    }
+
+    #[test]
+    fn test_extract_time_24h_dot_format() {
+        assert_eq!(extract_time_24h("friday 19.30"), Some((19, 30)));
+        assert_eq!(extract_time_24h("monday 14.00"), Some((14, 0)));
+        assert_eq!(extract_time_24h("08.45"), Some((8, 45)));
+    }
+
+    #[test]
+    fn test_extract_time_24h_invalid() {
+        assert_eq!(extract_time_24h("friday 25:30"), None); // Invalid hour
+        assert_eq!(extract_time_24h("monday 14:60"), None); // Invalid minute
+        assert_eq!(extract_time_24h("no time here"), None);
+        assert_eq!(extract_time_24h(""), None);
+    }
+
+    #[test]
+    fn test_days_until_weekday() {
+        // This test is relative to current day, so we test the logic
+        let monday = days_until_weekday(1);
+        let sunday = days_until_weekday(0);
+        
+        // Should be between 0 and 6 days
+        assert!(monday >= 0 && monday <= 7);
+        assert!(sunday >= 0 && sunday <= 7);
+        
+        // Sunday should be 7 days from any day if calculated as weekday 0
+        // But our function treats Sunday as 7, so it should work correctly
+    }
+
+    #[test]
+    fn test_parse_datetime_english_days() {
+        let result = parse_datetime("Friday 19:00");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+    }
+
+    #[test]
+    fn test_parse_datetime_swedish_days() {
+        let result = parse_datetime("fredag 19:00");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+    }
+
+    #[test]
+    fn test_parse_datetime_french_days() {
+        let result = parse_datetime("vendredi 19:00");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+    }
+
+    #[test]
+    fn test_parse_datetime_dot_notation() {
+        let result = parse_datetime("Monday 14.30");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 14);
+        assert_eq!(dt.minute(), 30);
+    }
+
+    #[test]
+    fn test_parse_datetime_iso_format() {
+        let iso_date = "2024-12-01T19:00:00Z";
+        let result = parse_datetime(iso_date);
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+    }
+
+    #[test]
+    fn test_parse_datetime_fallback() {
+        // Invalid input should fallback to tomorrow 19:00
+        let result = parse_datetime("invalid date string");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+        
+        // Should be within a reasonable time range (tomorrow +/- some days due to natural parsing)
+        let now = Utc::now();
+        let days_diff = (dt.date_naive() - now.date_naive()).num_days();
+        assert!(days_diff >= 1 && days_diff <= 14, "Date should be 1-14 days from now, got {} days", days_diff);
+    }
+
+    #[test]
+    fn test_format_datetime_european() {
+        let dt = Utc.with_ymd_and_hms(2024, 12, 1, 19, 30, 0).unwrap();
+        let formatted = format_datetime(&dt);
+        
+        // Should be in European format: "Saturday, 01 December at 19:30"
+        assert!(formatted.contains("December"));
+        assert!(formatted.contains("19:30"));
+        assert!(formatted.contains("01"));
+    }
+
+    #[test]
+    fn test_parse_datetime_mixed_case() {
+        let result = parse_datetime("FRIDAY 19:00");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+        
+        let result2 = parse_datetime("Friday 19:00");
+        assert!(result2.is_ok());
+        let dt2 = result2.unwrap();
+        assert_eq!(dt2.hour(), 19);
+    }
+
+    #[test]
+    fn test_parse_datetime_whitespace() {
+        let result = parse_datetime("  Friday 19:00  ");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.hour(), 19);
+    }
+
+    #[test]
+    fn test_parse_datetime_multiple_languages() {
+        let test_cases = vec![
+            ("Monday 14:00", 14),
+            ("måndag 14:00", 14),
+            ("lundi 14:00", 14),
+            ("Tuesday 20:30", 20),
+            ("tisdag 20:30", 20),
+            ("mardi 20:30", 20),
+        ];
+
+        for (input, expected_hour) in test_cases {
+            let result = parse_datetime(input);
+            assert!(result.is_ok(), "Failed to parse: {}", input);
+            let dt = result.unwrap();
+            assert_eq!(dt.hour(), expected_hour, "Wrong hour for: {}", input);
+        }
+    }
+}
