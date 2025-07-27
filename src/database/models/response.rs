@@ -11,7 +11,7 @@ pub struct Response {
     pub user_id: i64,
     pub username: Option<String>,
     pub response: String, // 'yes', 'no', 'maybe'
-    pub created_at: DateTime<Utc>,
+    pub created_at: String,
 }
 
 impl Response {
@@ -24,7 +24,7 @@ impl Response {
         response: String,
     ) -> Result<Self, sqlx::Error> {
         let id = Uuid::new_v4().to_string();
-        let now = Utc::now();
+        let now = Utc::now().to_rfc3339();
         
         // Delete existing response for this user/option
         sqlx::query!(
@@ -61,7 +61,7 @@ impl Response {
             user_id,
             username,
             response,
-            created_at: now,
+            created_at: now.clone(),
         })
     }
 
