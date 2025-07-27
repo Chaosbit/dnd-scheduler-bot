@@ -3,6 +3,7 @@ pub mod session_management;
 pub mod list;
 pub mod settings;
 pub mod stats;
+pub mod reminders;
 
 use teloxide::utils::command::BotCommands;
 
@@ -23,6 +24,8 @@ pub enum Command {
     Deadline { session_id: String, datetime: String },
     #[command(description = "List active sessions")]
     List,
+    #[command(description = "Test reminder system (admin only)")]
+    TestReminders,
     #[command(description = "Configure group settings")]
     Settings,
     #[command(description = "Show attendance statistics")]

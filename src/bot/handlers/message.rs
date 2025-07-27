@@ -34,6 +34,9 @@ pub async fn command_handler(
         Command::List => {
             crate::bot::commands::list::handle_list(bot, msg, &db).await?;
         }
+        Command::TestReminders => {
+            crate::bot::commands::reminders::handle_test_reminders(bot, msg, &db).await?;
+        }
         Command::Settings => {
             crate::bot::commands::settings::handle_settings(bot, msg, &db).await?;
         }
