@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -69,11 +69,10 @@ impl Response {
         pool: &sqlx::SqlitePool,
         session_id: &str,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as!(
-            Response,
-            "SELECT * FROM responses WHERE session_id = ?",
-            session_id
+        sqlx::query_as::<_, Response>(
+            "SELECT id, session_id, option_id, user_id, username, response, created_at FROM responses WHERE session_id = ?"
         )
+        .bind(session_id)
         .fetch_all(pool)
         .await
     }

@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Group {
-    pub id: Option<i64>,
+    pub id: i64,
     pub telegram_chat_id: i64,
     pub timezone: String,
     pub default_duration: i64, // minutes
@@ -17,11 +17,10 @@ impl Group {
         pool: &sqlx::SqlitePool,
         chat_id: i64,
     ) -> Result<Option<Self>, sqlx::Error> {
-        sqlx::query_as!(
-            Group,
-            "SELECT * FROM groups WHERE telegram_chat_id = ?",
-            chat_id
+        sqlx::query_as::<_, Group>(
+            "SELECT id, telegram_chat_id, timezone, default_duration, reminder_hours, created_at FROM groups WHERE telegram_chat_id = ?"
         )
+        .bind(chat_id)
         .fetch_optional(pool)
         .await
     }

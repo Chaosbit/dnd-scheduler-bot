@@ -16,7 +16,7 @@ impl BotHandler {
         Self { db }
     }
 
-    pub fn schema(&self) -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub fn schema(&self) -> UpdateHandler<teloxide::RequestError> {
         use teloxide::dispatching::UpdateFilterExt;
         
         let db = self.db.clone();

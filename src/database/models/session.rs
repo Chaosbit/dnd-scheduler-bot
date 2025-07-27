@@ -57,11 +57,10 @@ impl Session {
         pool: &sqlx::SqlitePool,
         session_id: &str,
     ) -> Result<Option<Self>, sqlx::Error> {
-        sqlx::query_as!(
-            Session,
-            "SELECT * FROM sessions WHERE id = ?",
-            session_id
+        sqlx::query_as::<_, Session>(
+            "SELECT id, group_id, title, message_id, status, deadline, created_by, created_at FROM sessions WHERE id = ?"
         )
+        .bind(session_id)
         .fetch_optional(pool)
         .await
     }
@@ -104,11 +103,10 @@ impl SessionOption {
         pool: &sqlx::SqlitePool,
         session_id: &str,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as!(
-            SessionOption,
-            "SELECT * FROM session_options WHERE session_id = ? ORDER BY datetime",
-            session_id
+        sqlx::query_as::<_, SessionOption>(
+            "SELECT id, session_id, datetime, duration, confirmed FROM session_options WHERE session_id = ? ORDER BY datetime"
         )
+        .bind(session_id)
         .fetch_all(pool)
         .await
     }
