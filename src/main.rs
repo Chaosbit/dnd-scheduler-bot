@@ -19,6 +19,7 @@ use crate::bot::handlers::BotHandler;
 use crate::config::Config;
 use crate::database::connection::DatabaseManager;
 use crate::services::reminder::ReminderService;
+use crate::services::health::HealthService;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -62,18 +63,48 @@ async fn main() -> Result<()> {
         info!("Reminder service started successfully");
     }
     
-    // Start bot with handler
-    Dispatcher::builder(bot, handler.schema())
-        .enable_ctrlc_handler()
-        .build()
-        .dispatch()
-        .await;
+    // Initialize health service
+    let health_service = HealthService::new(db_arc.clone());
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.http_port))
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to bind to port {}: {}", config.http_port, e))?;
+    
+    info!("Health check server starting on port {}", config.http_port);
+    
+    // Run both the bot and health server concurrently
+    let bot_task = tokio::spawn(async move {
+        Dispatcher::builder(bot, handler.schema())
+            .enable_ctrlc_handler()
+            .build()
+            .dispatch()
+            .await;
+    });
+    
+    let health_task = tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, health_service.router).await {
+            tracing::error!("Health server error: {}", e);
+        }
+    });
+    
+    // Wait for either task to complete (which would indicate shutdown)
+    tokio::select! {
+        result1 = bot_task => {
+            if let Err(e) = result1 {
+                tracing::error!("Bot task error: {}", e);
+            }
+        }
+        result2 = health_task => {
+            if let Err(e) = result2 {
+                tracing::error!("Health task error: {}", e);
+            }
+        }
+    }
     
     // Stop reminder service on shutdown
     if let Err(e) = reminder_service.stop().await {
         tracing::warn!("Error stopping reminder service: {}", e);
     }
     
-    info!("Bot stopped");
+    info!("Application stopped");
     Ok(())
 }
