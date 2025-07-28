@@ -2,6 +2,7 @@ use teloxide::prelude::*;
 use teloxide::utils::command::BotCommands;
 use crate::bot::commands::Command;
 use crate::database::connection::DatabaseManager;
+use crate::utils::feedback::CommandFeedback;
 
 pub async fn command_handler(
     bot: Bot,
@@ -11,13 +12,17 @@ pub async fn command_handler(
 ) -> ResponseResult<()> {
     match cmd {
         Command::Help => {
-            bot.send_message(msg.chat.id, Command::descriptions().to_string()).await?;
+            let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
+            let help_text = format!(
+                "🎲 **D&D Scheduler Bot Commands**\n\n{}\n\n💡 **Quick Start:**\n• Use `/schedule \"Session Title\" \"Friday 19:00, Saturday 14:30\"` to create a poll\n• Players click buttons to vote\n• Use `/confirm <session_id>` to lock in the winning time\n\n📚 **Need more help?** Each command provides detailed error messages and suggestions when used incorrectly.",
+                Command::descriptions()
+            );
+            feedback.info(&help_text).await?;
         }
         Command::Start => {
-            bot.send_message(
-                msg.chat.id,
-                "🎲 Welcome to D&D Scheduler Bot!\n\nUse /schedule to create a new session poll.\nUse /help to see all commands.",
-            ).await?;
+            let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
+            let welcome_text = "Welcome to D&D Scheduler Bot!\n\nI help you schedule D&D sessions by creating polls where players can vote on their preferred times.\n\n🚀 **Get Started:**\n• Use /schedule to create your first session poll\n• Use /help to see all available commands\n\n🎯 **Pro Tip:** I provide detailed feedback and suggestions for every command!";
+            feedback.success(welcome_text).await?;
         }
         Command::Schedule { title, options } => {
             crate::bot::commands::schedule::handle_schedule(bot, msg, title, options, &db).await?;

@@ -1,5 +1,6 @@
 pub mod callback;
 pub mod message;
+pub mod general_message;
 
 use teloxide::{
     dispatching::{dialogue, UpdateHandler},
@@ -30,6 +31,10 @@ impl BotHandler {
                         let db = db.clone();
                         async move { message::command_handler(bot, msg, cmd, db).await }
                     }),
+            )
+            .branch(
+                Update::filter_message()
+                    .endpoint(general_message::handle_general_message)
             )
             .branch(Update::filter_callback_query().endpoint(move |bot, q| {
                 let db = db_callback.clone();

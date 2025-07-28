@@ -1,6 +1,6 @@
 use teloxide::prelude::*;
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::{datetime::format_datetime, markdown::escape_markdown};
+use crate::utils::{datetime::format_datetime, markdown::escape_markdown, feedback::CommandFeedback};
 use chrono::Utc;
 use std::collections::HashMap;
 
@@ -10,37 +10,44 @@ pub async fn handle_list(
     db: &DatabaseManager,
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
+    let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
+    
+    // Send processing message
+    let processing_msg = feedback.send_processing("Loading active sessions...").await?;
     
     // Get the group
     let group = match Group::find_by_chat_id(&db.pool, chat_id).await {
         Ok(Some(group)) => group,
         Ok(None) => {
-            bot.send_message(msg.chat.id, "❌ Group not found. Create a session first with /schedule.").await?;
+            let error_msg = "No sessions found for this group";
+            let suggestion = "Create your first session with /schedule \"Session Title\" \"Friday 19:00, Saturday 14:30\"";
+            feedback.validation_error(error_msg, suggestion).await?;
             return Ok(());
         }
         Err(e) => {
             tracing::error!("Failed to find group: {}", e);
-            bot.send_message(msg.chat.id, "❌ Error retrieving group information.").await?;
+            feedback.error("Failed to retrieve group information from database").await?;
             return Ok(());
         }
     };
     
     // Get all active sessions for this group
     let sessions = match get_sessions_by_group(&db.pool, group.id).await {
-        Ok(sessions) => sessions,
+        Ok(sessions) => {
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                &format!("Found {} sessions, loading details...", sessions.len())).await?;
+            sessions
+        },
         Err(e) => {
             tracing::error!("Failed to get sessions: {}", e);
-            bot.send_message(msg.chat.id, "❌ Error retrieving sessions.").await?;
+            feedback.error("Failed to retrieve sessions from database").await?;
             return Ok(());
         }
     };
     
     if sessions.is_empty() {
-        bot.send_message(msg.chat.id, 
-            "📋 **No Active Sessions**\n\nCreate a new session with /schedule"
-        )
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .await?;
+        let info_message = "No active sessions found\\n\\n📋 This group doesn't have any active or confirmed sessions\\n\\n💡 Create your first session with:\\n`/schedule \"Session Title\" \"Friday 19:00, Saturday 14:30\"`";
+        feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Info, info_message).await?;
         return Ok(());
     }
     
@@ -53,15 +60,21 @@ pub async fn handle_list(
         Ok(options) => options,
         Err(e) => {
             tracing::error!("Failed to batch fetch session options: {}", e);
-            bot.send_message(msg.chat.id, "❌ Error loading session data").await?;
+            feedback.error("Failed to load session time options from database").await?;
             return Ok(());
         }
     };
     
     let all_responses = match Response::find_by_sessions(&db.pool, &session_ids).await {
-        Ok(responses) => responses,
+        Ok(responses) => {
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Loading voting data...").await?;
+            responses
+        },
         Err(e) => {
             tracing::warn!("Failed to batch fetch responses: {}", e);
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Generating session list (voting data unavailable)...").await?;
             Vec::new()
         }
     };
@@ -152,9 +165,8 @@ pub async fn handle_list(
     message_text.push_str("• `/cancel <session_id>` \\- Cancel session\n");
     message_text.push_str("• `/deadline <session_id> <time>` \\- Set deadline\n");
     
-    bot.send_message(msg.chat.id, message_text)
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .await?;
+    // Send the complete session list
+    feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Success, &message_text).await?;
     
     Ok(())
 }

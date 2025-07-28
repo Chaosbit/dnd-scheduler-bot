@@ -1,7 +1,7 @@
 use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::validation::validate_telegram_chat_id;
+use crate::utils::{validation::validate_telegram_chat_id, feedback::CommandFeedback};
 
 pub async fn handle_settings(
     bot: Bot,
@@ -10,10 +10,16 @@ pub async fn handle_settings(
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
     let _user_id = msg.from().map(|u| u.id.0 as i64).unwrap_or(0);
+    let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
+    
+    // Send processing message
+    let processing_msg = feedback.send_processing("Loading group settings...").await?;
     
     // Validate chat ID
     if let Err(e) = validate_telegram_chat_id(chat_id) {
-        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {e}")).await?;
+        let error_msg = format!("Invalid chat configuration: {}", e);
+        let suggestion = "This command can only be used in properly configured chat groups.";
+        feedback.validation_error(&error_msg, suggestion).await?;
         return Ok(());
     }
     
@@ -22,21 +28,27 @@ pub async fn handle_settings(
     
     // Get or create group
     let group = match Group::find_by_chat_id(&db.pool, chat_id).await {
-        Ok(Some(group)) => group,
+        Ok(Some(group)) => {
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Loading group statistics...").await?;
+            group
+        },
         Ok(None) => {
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Setting up new group...").await?;
             // Create group if it doesn't exist
             match Group::create(&db.pool, chat_id).await {
                 Ok(group) => group,
                 Err(e) => {
                     tracing::error!("Failed to create group: {}", e);
-                    bot.send_message(msg.chat.id, "❌ Error accessing group settings.").await?;
+                    feedback.error("Failed to initialize group settings in database").await?;
                     return Ok(());
                 }
             }
         }
         Err(e) => {
             tracing::error!("Failed to find group: {}", e);
-            bot.send_message(msg.chat.id, "❌ Error accessing group settings.").await?;
+            feedback.error("Failed to access group information from database").await?;
             return Ok(());
         }
     };
@@ -46,6 +58,8 @@ pub async fn handle_settings(
         Ok(stats) => stats,
         Err(e) => {
             tracing::warn!("Failed to get group stats: {}", e);
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Loading settings (statistics unavailable)...").await?;
             GroupStats::default()
         }
     };
@@ -86,10 +100,20 @@ pub async fn handle_settings(
         ],
     ]);
     
-    bot.send_message(msg.chat.id, message_text)
+    // Send the settings message with enhanced feedback
+    let _settings_response = bot.send_message(msg.chat.id, message_text)
         .reply_markup(keyboard)
         .parse_mode(teloxide::types::ParseMode::MarkdownV2)
         .await?;
+    
+    // Update processing message to show completion
+    let completion_message = format!(
+        "Group settings loaded successfully!\\n\\n📊 Found {} total sessions and {} responses\\n\\n💡 Use the buttons below to configure settings",
+        stats.total_sessions, 
+        stats.total_responses
+    );
+    
+    feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Success, &completion_message).await?;
     
     Ok(())
 }

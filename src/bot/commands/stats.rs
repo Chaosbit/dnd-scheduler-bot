@@ -1,6 +1,6 @@
 use teloxide::prelude::*;
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::datetime::format_datetime;
+use crate::utils::{datetime::format_datetime, feedback::CommandFeedback};
 use chrono::Utc;
 use std::collections::HashMap;
 
@@ -10,27 +10,41 @@ pub async fn handle_stats(
     db: &DatabaseManager,
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
+    let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
+    
+    // Send processing message
+    let processing_msg = feedback.send_processing("Generating group statistics...").await?;
     
     // Get the group
     let group = match Group::find_by_chat_id(&db.pool, chat_id).await {
-        Ok(Some(group)) => group,
+        Ok(Some(group)) => {
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Loading session data...").await?;
+            group
+        },
         Ok(None) => {
-            bot.send_message(msg.chat.id, "❌ Group not found. Create a session first with /schedule.").await?;
+            let error_msg = "No statistics available for this group";
+            let suggestion = "Create your first session with /schedule \"Session Title\" \"Friday 19:00, Saturday 14:30\"";
+            feedback.validation_error(error_msg, suggestion).await?;
             return Ok(());
         }
         Err(e) => {
             tracing::error!("Failed to find group: {}", e);
-            bot.send_message(msg.chat.id, "❌ Error retrieving group information.").await?;
+            feedback.error("Failed to retrieve group information from database").await?;
             return Ok(());
         }
     };
     
     // Get detailed statistics
     let stats = match get_detailed_stats(&db.pool, group.id).await {
-        Ok(stats) => stats,
+        Ok(stats) => {
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Calculating response statistics...").await?;
+            stats
+        },
         Err(e) => {
             tracing::error!("Failed to get stats: {}", e);
-            bot.send_message(msg.chat.id, "❌ Error retrieving statistics.").await?;
+            feedback.error("Failed to retrieve statistical data from database").await?;
             return Ok(());
         }
     };
@@ -110,9 +124,8 @@ pub async fn handle_stats(
     // Footer
     message_text.push_str("💡 Use `/settings` for group configuration");
     
-    bot.send_message(msg.chat.id, message_text)
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .await?;
+    // Send the complete statistics with enhanced feedback
+    feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Success, &message_text).await?;
     
     Ok(())
 }
