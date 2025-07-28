@@ -46,28 +46,49 @@ pub async fn handle_list(
     
     let mut message_text = String::from("📋 **Active Sessions**\n\n");
     
+    // Batch fetch all session options and responses to avoid N+1 queries
+    let session_ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
+    
+    let all_options = match SessionOption::find_by_sessions(&db.pool, &session_ids).await {
+        Ok(options) => options,
+        Err(e) => {
+            tracing::error!("Failed to batch fetch session options: {}", e);
+            bot.send_message(msg.chat.id, "❌ Error loading session data").await?;
+            return Ok(());
+        }
+    };
+    
+    let all_responses = match Response::find_by_sessions(&db.pool, &session_ids).await {
+        Ok(responses) => responses,
+        Err(e) => {
+            tracing::warn!("Failed to batch fetch responses: {}", e);
+            Vec::new()
+        }
+    };
+    
+    // Group options and responses by session ID for efficient lookup
+    let mut options_by_session: HashMap<String, Vec<&SessionOption>> = HashMap::new();
+    for option in &all_options {
+        options_by_session.entry(option.session_id.clone()).or_default().push(option);
+    }
+    
+    let mut responses_by_session: HashMap<String, Vec<&Response>> = HashMap::new();
+    for response in &all_responses {
+        responses_by_session.entry(response.session_id.clone()).or_default().push(response);
+    }
+    
     for session in sessions {
-        // Get session options
-        let options = match SessionOption::find_by_session(&db.pool, &session.id).await {
-            Ok(options) => options,
-            Err(e) => {
-                tracing::warn!("Failed to get options for session {}: {}", session.id, e);
-                continue;
-            }
-        };
+        // Get session options from pre-fetched data
+        let empty_options = Vec::new();
+        let options = options_by_session.get(&session.id).unwrap_or(&empty_options);
         
-        // Get responses for vote counts
-        let responses = match Response::find_by_session(&db.pool, &session.id).await {
-            Ok(responses) => responses,
-            Err(e) => {
-                tracing::warn!("Failed to get responses for session {}: {}", session.id, e);
-                Vec::new()
-            }
-        };
+        // Get responses for vote counts from pre-fetched data
+        let empty_responses = Vec::new();
+        let responses = responses_by_session.get(&session.id).unwrap_or(&empty_responses);
         
         // Group responses by option
         let mut responses_by_option: HashMap<String, Vec<&Response>> = HashMap::new();
-        for response in &responses {
+        for response in responses {
             responses_by_option.entry(response.option_id.clone())
                 .or_default()
                 .push(response);

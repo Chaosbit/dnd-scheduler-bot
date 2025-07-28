@@ -76,4 +76,27 @@ impl Response {
         .fetch_all(pool)
         .await
     }
+
+    /// Batch fetch responses for multiple sessions to avoid N+1 queries
+    pub async fn find_by_sessions(
+        pool: &sqlx::SqlitePool,
+        session_ids: &[String],
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        if session_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let placeholders = session_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let query = format!(
+            "SELECT id, session_id, option_id, user_id, username, response, created_at FROM responses WHERE session_id IN ({}) ORDER BY session_id, created_at",
+            placeholders
+        );
+
+        let mut query_builder = sqlx::query_as::<_, Response>(&query);
+        for session_id in session_ids {
+            query_builder = query_builder.bind(session_id);
+        }
+
+        query_builder.fetch_all(pool).await
+    }
 }

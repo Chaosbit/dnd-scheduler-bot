@@ -110,4 +110,27 @@ impl SessionOption {
         .fetch_all(pool)
         .await
     }
+
+    /// Batch fetch session options for multiple sessions to avoid N+1 queries
+    pub async fn find_by_sessions(
+        pool: &sqlx::SqlitePool,
+        session_ids: &[String],
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        if session_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let placeholders = session_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let query = format!(
+            "SELECT id, session_id, datetime, duration, confirmed FROM session_options WHERE session_id IN ({}) ORDER BY session_id, datetime",
+            placeholders
+        );
+
+        let mut query_builder = sqlx::query_as::<_, SessionOption>(&query);
+        for session_id in session_ids {
+            query_builder = query_builder.bind(session_id);
+        }
+
+        query_builder.fetch_all(pool).await
+    }
 }
