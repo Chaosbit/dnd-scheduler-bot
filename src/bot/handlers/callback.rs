@@ -2,7 +2,11 @@ use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode};
 use crate::database::connection::DatabaseManager;
 use crate::database::models::*;
-use crate::utils::{datetime::format_datetime, markdown::escape_markdown};
+use crate::utils::{
+    datetime::format_datetime, 
+    markdown::escape_markdown,
+    validation::validate_response_type
+};
 use chrono::Utc;
 use std::collections::HashMap;
 
@@ -18,71 +22,84 @@ pub async fn callback_handler(
         }
         
         // Parse callback data: "session_id:option_id:response"
+        // Validate the callback data format first
         let parts: Vec<&str> = data.split(':').collect();
-        if parts.len() == 3 {
-            let session_id = parts[0];
-            let option_id = parts[1];
-            let response = parts[2];
-            
-            let user = &q.from;
-            let user_id = user.id.0 as i64;
-            let username = user.username.clone();
-            
-            // Validate response type
-            match crate::utils::validation::validate_response_type(response) {
-                Ok(_) => {},
-                Err(e) => {
-                    bot.answer_callback_query(q.id)
-                        .text(format!("Invalid response: {}", e))
-                        .await?;
-                    return Ok(());
-                }
+        if parts.len() != 3 {
+            if let Some(msg) = q.message {
+                bot.send_message(msg.chat.id, "❌ Invalid callback data format").await?;
             }
-            
-            // Update response in database
-            let _response_record = match Response::upsert(
-                &db.pool,
-                session_id.to_string(),
-                option_id.to_string(),
-                user_id,
-                username,
-                response.to_string(),
-            ).await {
-                Ok(r) => r,
-                Err(e) => {
-                    bot.answer_callback_query(q.id)
-                        .text("Failed to save response")
-                        .await?;
-                    tracing::error!("Failed to save response: {}", e);
-                    return Ok(());
-                }
-            };
-            
-            // Get session and update the message
-            match update_session_message(&bot, &db, session_id, &q).await {
-                Ok(_) => {
-                    let response_emoji = match response {
-                        "yes" => "✅",
-                        "no" => "❌", 
-                        "maybe" => "❓",
-                        _ => "👍"
-                    };
-                    bot.answer_callback_query(q.id)
-                        .text(format!("{} Marked as {}", response_emoji, response))
-                        .await?;
-                },
-                Err(e) => {
-                    bot.answer_callback_query(q.id)
-                        .text("Response saved but couldn't update message")
-                        .await?;
-                    tracing::error!("Failed to update message: {}", e);
-                }
-            }
-        } else {
-            bot.answer_callback_query(q.id)
-                .text("Invalid callback data format")
-                .await?;
+            return Ok(());
         }
+        
+        let session_id = parts[0];
+        let option_id = parts[1];
+        let response = parts[2];
+        
+        let user = &q.from;
+        let user_id = user.id.0 as i64;
+        let username = user.username.clone();
+        
+        // Validate response type
+        if let Err(e) = validate_response_type(response) {
+            if let Some(msg) = q.message {
+                bot.send_message(msg.chat.id, format!("❌ Invalid response: {}", e)).await?;
+            }
+            return Ok(());
+        }
+        
+        // Validate session_id and option_id are not empty
+        if session_id.is_empty() || option_id.is_empty() {
+            if let Some(msg) = q.message {
+                bot.send_message(msg.chat.id, "❌ Invalid session or option ID").await?;
+            }
+            return Ok(());
+        }
+        
+        // Additional validation can be added here for session existence
+        
+        // Update response in database
+        let _response_record = match Response::upsert(
+            &db.pool,
+            session_id.to_string(),
+            option_id.to_string(),
+            user_id,
+            username,
+            response.to_string(),
+        ).await {
+            Ok(r) => r,
+            Err(e) => {
+                bot.answer_callback_query(q.id)
+                    .text("Failed to save response")
+                    .await?;
+                tracing::error!("Failed to save response: {}", e);
+                return Ok(());
+            }
+        };
+        
+        // Get session and update the message
+        match update_session_message(&bot, &db, session_id, &q).await {
+            Ok(_) => {
+                let response_emoji = match response {
+                    "yes" => "✅",
+                    "no" => "❌", 
+                    "maybe" => "❓",
+                    _ => "👍"
+                };
+                bot.answer_callback_query(q.id)
+                    .text(format!("{} Marked as {}", response_emoji, response))
+                    .await?;
+            },
+            Err(e) => {
+                bot.answer_callback_query(q.id)
+                    .text("Response saved but couldn't update message")
+                    .await?;
+                tracing::error!("Failed to update message: {}", e);
+            }
+        }
+    } else {
+        bot.answer_callback_query(q.id)
+            .text("Invalid callback data format")
+            .await?;
     }
     
     Ok(())

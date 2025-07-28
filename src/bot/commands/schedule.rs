@@ -1,7 +1,11 @@
 use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use crate::database::{connection::DatabaseManager, models::*};
-use crate::utils::{datetime::{parse_datetime, format_datetime}, markdown::escape_markdown};
+use crate::utils::{
+    datetime::{parse_datetime, format_datetime}, 
+    markdown::escape_markdown,
+    validation::{validate_session_title, validate_time_options, validate_telegram_chat_id}
+};
 use chrono::Utc;
 
 pub async fn handle_schedule(
@@ -13,6 +17,25 @@ pub async fn handle_schedule(
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
     let user_id = msg.from().map(|u| u.id.0 as i64).unwrap_or(0);
+    
+    // Validate inputs
+    if let Err(e) = validate_telegram_chat_id(chat_id) {
+        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {}", e)).await?;
+        return Ok(());
+    }
+    
+    if let Err(e) = validate_session_title(&title) {
+        bot.send_message(msg.chat.id, format!("❌ Invalid session title: {}", e)).await?;
+        return Ok(());
+    }
+    
+    let validated_options = match validate_time_options(&options) {
+        Ok(opts) => opts,
+        Err(e) => {
+            bot.send_message(msg.chat.id, format!("❌ Invalid time options: {}", e)).await?;
+            return Ok(());
+        }
+    };
     
     // Get or create group
     let group = match Group::find_by_chat_id(&db.pool, chat_id).await {
@@ -28,11 +51,10 @@ pub async fn handle_schedule(
         teloxide::RequestError::Api(teloxide::ApiError::Unknown(e.to_string()))
     })?;
     
-    // Parse options (for now, just split by commas - TODO: proper date parsing)
-    let option_strings: Vec<&str> = options.split(',').map(|s| s.trim()).collect();
+    // Use the validated options instead of re-parsing
     let mut session_options = Vec::new();
     
-    for option_str in &option_strings {
+    for option_str in &validated_options {
         // Parse the datetime from the option string
         let datetime = match parse_datetime(option_str) {
             Ok(dt) => dt,

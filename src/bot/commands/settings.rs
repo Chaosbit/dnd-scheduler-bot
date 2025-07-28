@@ -1,6 +1,7 @@
 use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use crate::database::{connection::DatabaseManager, models::*};
+use crate::utils::validation::validate_telegram_chat_id;
 
 pub async fn handle_settings(
     bot: Bot,
@@ -9,6 +10,12 @@ pub async fn handle_settings(
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
     let _user_id = msg.from().map(|u| u.id.0 as i64).unwrap_or(0);
+    
+    // Validate chat ID
+    if let Err(e) = validate_telegram_chat_id(chat_id) {
+        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {}", e)).await?;
+        return Ok(());
+    }
     
     // Check if user is admin (for now, anyone can access settings)
     // In a real implementation, you might want to check if user is a group admin
