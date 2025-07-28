@@ -116,6 +116,11 @@ pub async fn handle_schedule(
         tracing::warn!("Failed to store message ID: {}", e);
     }
     
+    // Send confirmation message to the session creator
+    bot.send_message(msg.chat.id, format!("✅ Session '{}' created successfully!", title))
+        .reply_to_message_id(msg.id)
+        .await?;
+    
     Ok(())
 }
 
