@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use teloxide::prelude::*;
+use teloxide::dispatching::dialogue::InMemStorage;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -73,7 +74,9 @@ async fn main() -> Result<()> {
     
     // Run both the bot and health server concurrently
     let bot_task = tokio::spawn(async move {
+        let storage: std::sync::Arc<InMemStorage<()>> = InMemStorage::new().into();
         Dispatcher::builder(bot, handler.schema())
+            .dependencies(dptree::deps![storage])
             .enable_ctrlc_handler()
             .build()
             .dispatch()
