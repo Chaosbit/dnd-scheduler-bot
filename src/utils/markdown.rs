@@ -2,7 +2,6 @@
 /// 
 /// MarkdownV2 requires escaping of special characters to prevent formatting issues.
 /// This module provides centralized functions for proper text escaping.
-
 /// Escapes markdown special characters for MarkdownV2 parsing mode
 /// 
 /// This function escapes all characters that have special meaning in Telegram's

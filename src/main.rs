@@ -1,6 +1,12 @@
+//! # DND Scheduler Bot Main Entry Point
+//! 
+//! This is the main entry point for the DND Scheduler Bot application.
+//! It initializes logging, loads configuration, sets up the database,
+//! starts the reminder service, and runs the Telegram bot.
+
 use anyhow::Result;
 use teloxide::prelude::*;
-use tracing::{info, error};
+use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod bot;

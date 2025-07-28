@@ -28,7 +28,7 @@ pub fn validate_telegram_chat_id(chat_id: i64) -> Result<()> {
     // Telegram chat IDs for groups are typically negative
     // Private chats have positive IDs (up to about 2^31)
     // Super groups have very large negative IDs (< -1000000000000)
-    if chat_id < -2000000000000 || chat_id > 2147483647 {
+    if !(-2000000000000..=2147483647).contains(&chat_id) {
         return Err(anyhow!("Invalid Telegram chat ID range"));
     }
     

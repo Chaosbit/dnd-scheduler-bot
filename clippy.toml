@@ -1,0 +1,29 @@
+# Clippy configuration for dnd-scheduler-bot
+# This file configures clippy linting rules for better code quality
+
+# Enforce strict linting for production code
+avoid-breaking-exported-api = false
+cognitive-complexity-threshold = 25
+single-char-binding-names-threshold = 4
+trivial-copy-size-limit = 64
+type-complexity-threshold = 250
+too-many-arguments-threshold = 7
+too-many-lines-threshold = 100
+enum-variant-name-threshold = 3
+verbose-bit-mask-threshold = 1
+
+# Allow certain lints in tests
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-panic-in-tests = true
+
+# Disallow problematic patterns
+disallowed-methods = [
+    "std::process::exit",
+    "std::process::abort",
+]
+
+# disallowed-types = []  # Add problematic types here if needed
+
+# Documentation requirements
+missing-docs-in-crate-items = true

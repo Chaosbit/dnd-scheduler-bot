@@ -89,8 +89,8 @@ async fn check_and_send_reminders(
             
             // Send reminder if we're within 1 hour of the reminder time
             // and haven't sent this reminder before
-            if time_diff <= 1 {
-                if !has_reminder_been_sent(&db.pool, &session.id, interval.num_days()).await? {
+            if time_diff <= 1
+                && !has_reminder_been_sent(&db.pool, &session.id, interval.num_days()).await? {
                     let success = send_session_reminder(
                         &bot,
                         &session,
@@ -110,7 +110,6 @@ async fn check_and_send_reminders(
                         );
                     }
                 }
-            }
         }
     }
     
@@ -128,7 +127,7 @@ async fn send_session_reminder(
     let formatted_datetime = format_datetime(session_datetime);
     let duration_hours = confirmed_option.duration / 60;
     let duration_display = if duration_hours >= 1 {
-        format!("{}h", duration_hours)
+        format!("{duration_hours}h")
     } else {
         format!("{}min", confirmed_option.duration)
     };

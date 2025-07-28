@@ -20,19 +20,19 @@ pub async fn handle_schedule(
     
     // Validate inputs
     if let Err(e) = validate_telegram_chat_id(chat_id) {
-        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {}", e)).await?;
+        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {e}")).await?;
         return Ok(());
     }
     
     if let Err(e) = validate_session_title(&title) {
-        bot.send_message(msg.chat.id, format!("❌ Invalid session title: {}", e)).await?;
+        bot.send_message(msg.chat.id, format!("❌ Invalid session title: {e}")).await?;
         return Ok(());
     }
     
     let validated_options = match validate_time_options(&options) {
         Ok(opts) => opts,
         Err(e) => {
-            bot.send_message(msg.chat.id, format!("❌ Invalid time options: {}", e)).await?;
+            bot.send_message(msg.chat.id, format!("❌ Invalid time options: {e}")).await?;
             return Ok(());
         }
     };
@@ -43,7 +43,7 @@ pub async fn handle_schedule(
         Ok(None) => Group::create(&db.pool, chat_id).await.map_err(|e| {
             teloxide::RequestError::Api(teloxide::ApiError::Unknown(e.to_string()))
         })?,
-        Err(e) => return Err(teloxide::RequestError::Api(teloxide::ApiError::Unknown(e.to_string())).into()),
+        Err(e) => return Err(teloxide::RequestError::Api(teloxide::ApiError::Unknown(e.to_string()))),
     };
     
     // Create session
@@ -61,7 +61,7 @@ pub async fn handle_schedule(
             Err(_) => {
                 // If parsing fails, send error message and return
                 bot.send_message(msg.chat.id, 
-                    format!("❌ Could not parse date/time: '{}'\n\nPlease use formats like:\n• Friday 19:00\n• Monday 14.30\n• Tuesday 20:00", option_str)
+                    format!("❌ Could not parse date/time: '{option_str}'\n\nPlease use formats like:\n• Friday 19:00\n• Monday 14.30\n• Tuesday 20:00")
                 ).await?;
                 return Ok(());
             }
@@ -75,7 +75,7 @@ pub async fn handle_schedule(
     
     // Create inline keyboard
     let mut keyboard_rows = Vec::new();
-    for (_i, option) in session_options.iter().enumerate() {
+    for option in session_options.iter() {
         let row = vec![
             InlineKeyboardButton::callback(
                 "✅ Yes",
@@ -95,7 +95,7 @@ pub async fn handle_schedule(
     
     let keyboard = InlineKeyboardMarkup::new(keyboard_rows);
     
-    let mut message_text = format!("🎲 **{}**\n\nSelect your availability for each option:\n\n", title);
+    let mut message_text = format!("🎲 **{title}**\n\nSelect your availability for each option:\n\n");
     
     for (i, option) in session_options.iter().enumerate() {
         let datetime_str = chrono::DateTime::parse_from_rfc3339(&option.datetime)

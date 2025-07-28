@@ -33,3 +33,29 @@ env_logger = "0.10"
 [dev-dependencies]
 tempfile = "3.0"
 tokio-test = "0.4"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_imports = "deny"
+unused_variables = "deny"
+dead_code = "warn"
+missing_docs = "warn"
+
+[lints.clippy]
+# Correctness lints (deny in production code, allow in tests)
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unimplemented = "deny"
+todo = "deny"
+
+# Performance lints (warn)
+inefficient_to_string = "warn"
+needless_collect = "warn"
+redundant_clone = "warn"
+
+# Style lints (warn)
+redundant_else = "warn"
+unnecessary_wraps = "warn"
+unused_self = "warn"
+manual_assert = "warn"

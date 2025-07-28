@@ -69,7 +69,7 @@ pub async fn handle_list(
         let mut responses_by_option: HashMap<String, Vec<&Response>> = HashMap::new();
         for response in &responses {
             responses_by_option.entry(response.option_id.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(response);
         }
         
@@ -122,7 +122,7 @@ pub async fn handle_list(
             ));
         }
         
-        message_text.push_str("\n");
+        message_text.push('\n');
     }
     
     // Add command usage hints

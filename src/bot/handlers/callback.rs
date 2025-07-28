@@ -42,7 +42,7 @@ pub async fn callback_handler(
         // Validate response type
         if let Err(e) = validate_response_type(response) {
             if let Some(msg) = q.message {
-                bot.send_message(msg.chat.id, format!("❌ Invalid response: {}", e)).await?;
+                bot.send_message(msg.chat.id, format!("❌ Invalid response: {e}")).await?;
             }
             return Ok(());
         }
@@ -86,7 +86,7 @@ pub async fn callback_handler(
                     _ => "👍"
                 };
                 bot.answer_callback_query(q.id)
-                    .text(format!("{} Marked as {}", response_emoji, response))
+                    .text(format!("{response_emoji} Marked as {response}"))
                     .await?;
             },
             Err(e) => {
@@ -126,7 +126,7 @@ async fn update_session_message(
     let mut responses_by_option: HashMap<String, Vec<&Response>> = HashMap::new();
     for response in &responses {
         responses_by_option.entry(response.option_id.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(response);
     }
     
@@ -152,22 +152,21 @@ async fn update_session_message(
         let maybe_count = option_responses.iter().filter(|r| r.response == "maybe").count();
         
         message_text.push_str(&format!(
-            "✅ {} • ❌ {} • ❓ {}\n\n",
-            yes_count, no_count, maybe_count
+            "✅ {yes_count} • ❌ {no_count} • ❓ {maybe_count}\n\n"
         ));
         
         // Add the inline keyboard row for this option
         let row = vec![
             InlineKeyboardButton::callback(
-                format!("✅ {}", yes_count),
+                format!("✅ {yes_count}"),
                 format!("{}:{}:yes", session.id, option.id),
             ),
             InlineKeyboardButton::callback(
-                format!("❌ {}", no_count), 
+                format!("❌ {no_count}"), 
                 format!("{}:{}:no", session.id, option.id),
             ),
             InlineKeyboardButton::callback(
-                format!("❓ {}", maybe_count),
+                format!("❓ {maybe_count}"),
                 format!("{}:{}:maybe", session.id, option.id),
             ),
         ];

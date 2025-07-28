@@ -13,7 +13,7 @@ pub async fn handle_settings(
     
     // Validate chat ID
     if let Err(e) = validate_telegram_chat_id(chat_id) {
-        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {}", e)).await?;
+        bot.send_message(msg.chat.id, format!("❌ Invalid chat: {e}")).await?;
         return Ok(());
     }
     

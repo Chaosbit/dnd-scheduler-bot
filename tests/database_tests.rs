@@ -1,7 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
 use dnd_scheduler_bot::database::{connection::DatabaseManager, models::*};
-use sqlx::SqlitePool;
 use tempfile::tempdir;
 
 async fn setup_test_db() -> Result<DatabaseManager> {
@@ -65,7 +64,7 @@ async fn test_session_creation_and_retrieval() -> Result<()> {
     assert_eq!(session.title, title);
     assert_eq!(session.created_by, user_id);
     assert_eq!(session.status, "active");
-    assert!(session.id.len() > 0); // UUID should be generated
+    assert!(!session.id.is_empty()); // UUID should be generated
     
     // Test session retrieval
     let found_session = Session::find_by_id(&db.pool, &session.id).await?;
@@ -106,12 +105,12 @@ async fn test_session_option_creation() -> Result<()> {
     assert_eq!(option.session_id, session.id);
     assert_eq!(option.duration, duration);
     assert!(!option.confirmed);
-    assert!(option.id.len() > 0); // UUID should be generated
+    assert!(!option.id.is_empty()); // UUID should be generated
     
     // Verify the datetime was stored correctly
     let stored_datetime = chrono::DateTime::parse_from_rfc3339(&option.datetime)?;
-    let expected_datetime = datetime.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
-    let actual_datetime = stored_datetime.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+    let _expected_datetime = datetime.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+    let _actual_datetime = stored_datetime.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
     
     // Allow for small time differences (within 1 second)
     let stored_timestamp = stored_datetime.timestamp();

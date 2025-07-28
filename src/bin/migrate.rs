@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
             Ok(())
         }
         _ => {
-            eprintln!("Unknown command: {}", command);
+            eprintln!("Unknown command: {command}");
             print_help();
             std::process::exit(1);
         }
@@ -62,7 +62,7 @@ async fn run_migrations() -> Result<()> {
             println!("\n🎯 Your D&D Scheduler Bot database is ready!");
         }
         Err(e) => {
-            eprintln!("❌ Migration failed: {}", e);
+            eprintln!("❌ Migration failed: {e}");
             std::process::exit(1);
         }
     }
@@ -87,11 +87,11 @@ async fn check_database() -> Result<()> {
             println!("✅ Database connection successful!");
             println!("📋 Found tables:");
             for table in tables {
-                println!("  • {}", table);
+                println!("  • {table}");
             }
         }
         Err(e) => {
-            println!("⚠️  Database check failed: {}", e);
+            println!("⚠️  Database check failed: {e}");
             println!("💡 Try running 'migrate up' to create the schema");
         }
     }
@@ -119,7 +119,7 @@ async fn reset_database() -> Result<()> {
         let db_path = config.database_url.strip_prefix("sqlite:").unwrap_or(&config.database_url);
         if Path::new(db_path).exists() {
             std::fs::remove_file(db_path)?;
-            println!("🗑️  Deleted database file: {}", db_path);
+            println!("🗑️  Deleted database file: {db_path}");
         }
     } else {
         return Err(anyhow!("Reset is only supported for SQLite databases"));

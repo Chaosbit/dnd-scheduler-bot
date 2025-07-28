@@ -257,7 +257,7 @@ pub async fn handle_deadline(
         Ok(dt) => dt,
         Err(_) => {
             bot.send_message(msg.chat.id, 
-                format!("❌ Could not parse deadline: '{}'\n\nPlease use formats like:\n• Friday 19:00\n• Monday 14.30\n• Tuesday 20:00", datetime)
+                format!("❌ Could not parse deadline: '{datetime}'\n\nPlease use formats like:\n• Friday 19:00\n• Monday 14.30\n• Tuesday 20:00")
             ).await?;
             return Ok(());
         }

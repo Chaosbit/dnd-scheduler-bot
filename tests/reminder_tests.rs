@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use dnd_scheduler_bot::database::models::{Reminder, Session, Group, SessionOption};
 use dnd_scheduler_bot::database::connection::DatabaseManager;
 use tempfile::tempdir;
@@ -159,7 +161,7 @@ async fn test_reminder_cleanup_on_session_delete() {
         .unwrap();
     
     // Create reminder
-    let reminder = Reminder::create(&db.pool, session.id.clone(), 7)
+    let _reminder = Reminder::create(&db.pool, session.id.clone(), 7)
         .await
         .unwrap();
     
