@@ -1,19 +1,53 @@
 version: '3.8'
+
 services:
   dnd-scheduler:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: dnd-scheduler-bot
     environment:
-      - TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - DATABASE_URL=sqlite:/app/data/scheduler.db
       - HTTP_PORT=3000
-      - RUST_LOG=info
+      - RUST_LOG=${RUST_LOG:-info}
     volumes:
-      - ./data:/app/data
+      - scheduler_data:/app/data
+      - ./migrations:/app/migrations:ro
     ports:
-      - "3000:3000"
+      - "${HTTP_PORT:-3000}:3000"
     restart: unless-stopped
+    networks:
+      - scheduler_network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/live"]
       interval: 30s
       timeout: 10s
+      start_period: 60s
       retries: 3
+    # The application handles its own migration on startup
+    command: ["/app/dnd-scheduler-bot"]
+
+  # Optional: Reverse proxy for production deployment
+  nginx:
+    image: nginx:alpine
+    container_name: dnd-scheduler-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - dnd-scheduler
+    networks:
+      - scheduler_network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  scheduler_data:
+    driver: local
+
+networks:
+  scheduler_network:
+    driver: bridge

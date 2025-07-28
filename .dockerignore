@@ -1,6 +1,55 @@
+# Rust build artifacts
 target/
+Cargo.lock
+
+# Database files
 data/
-.env
+*.db
+*.db-*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
 .git/
-*.md
 .gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+ROADMAP.md
+VISION.md
+CLAUDE.md
+*.md
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+
+# Test files and coverage
+tests/
+coverage/
+
+# Temporary files
+tmp/
+temp/
