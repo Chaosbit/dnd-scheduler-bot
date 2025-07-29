@@ -8,53 +8,59 @@ pub mod reminders;
 use teloxide::utils::command::BotCommands;
 
 fn parse_schedule_args(input: String) -> Result<(String, String), teloxide::utils::command::ParseError> {
-    // Handle quoted arguments: /schedule "Title with spaces" "Time options"
+    let input = input.trim();
+    
+    if input.is_empty() {
+        return Err(teloxide::utils::command::ParseError::IncorrectFormat("Expected: /schedule Title Time options".into()));
+    }
+    
+    // Handle case where first argument is quoted
     if input.starts_with('"') {
-        let mut parts = Vec::new();
-        let mut current = String::new();
-        let mut in_quotes = false;
-        let mut chars = input.chars().peekable();
-        
-        while let Some(ch) = chars.next() {
-            match ch {
-                '"' => {
-                    in_quotes = !in_quotes;
-                    if !in_quotes && !current.is_empty() {
-                        parts.push(current.clone());
-                        current.clear();
-                    }
-                }
-                ' ' if !in_quotes => {
-                    // Skip spaces outside quotes
-                    continue;
-                }
-                _ => {
-                    current.push(ch);
-                }
+        // Find the closing quote for the first argument
+        if let Some(closing_quote_pos) = input[1..].find('"') {
+            let title = input[1..closing_quote_pos + 1].to_string();
+            let rest = input[closing_quote_pos + 2..].trim();
+            
+            // Allow empty options for quoted title case
+            if rest.is_empty() {
+                return Ok((title, String::new()));
             }
-        }
-        
-        // Add final part if we ended inside quotes
-        if !current.is_empty() {
-            parts.push(current);
-        }
-        
-        if parts.len() >= 2 {
-            Ok((parts[0].clone(), parts[1..].join(" ")))
-        } else if parts.len() == 1 {
-            // Only one quoted argument, use the rest as second argument
-            let remaining = input.split_once('"').and_then(|(_, rest)| rest.split_once('"'))
-                .map(|(_, rest)| rest.trim().to_string())
-                .unwrap_or_default();
-            Ok((parts[0].clone(), remaining))
+            
+            // Check if the rest is also quoted
+            if rest.starts_with('"') && rest.ends_with('"') && rest.len() > 1 {
+                let options = rest[1..rest.len()-1].to_string();
+                Ok((title, options))
+            } else {
+                // Rest is not quoted, use as-is
+                Ok((title, rest.to_string()))
+            }
         } else {
-            Err(teloxide::utils::command::ParseError::IncorrectFormat("Expected: /schedule \"Title\" \"Time options\"".into()))
+            // Unclosed quote - treat everything after quote as title (graceful handling)
+            let title = input[1..].to_string();
+            Ok((title, String::new()))
         }
     } else {
         // Handle unquoted arguments: /schedule Title Rest of the options
         match input.split_once(' ') {
-            Some((title, options)) => Ok((title.to_string(), options.to_string())),
-            None => Err(teloxide::utils::command::ParseError::IncorrectFormat("Expected: /schedule Title Time options".into())),
+            Some((title, options)) => {
+                let title = title.trim();
+                let options = options.trim();
+                
+                if title.is_empty() {
+                    return Err(teloxide::utils::command::ParseError::IncorrectFormat("Title cannot be empty".into()));
+                }
+                
+                // If options are quoted, remove the quotes
+                if options.starts_with('"') && options.ends_with('"') && options.len() > 1 {
+                    Ok((title.to_string(), options[1..options.len()-1].to_string()))
+                } else {
+                    Ok((title.to_string(), options.to_string()))
+                }
+            },
+            None => {
+                // Only one argument provided, use as title with empty options
+                Ok((input.to_string(), String::new()))
+            }
         }
     }
 }
@@ -67,7 +73,7 @@ fn parse_deadline_args(input: String) -> Result<(String, String), teloxide::util
 }
 
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "lowercase", description = "D&D Scheduler Bot commands:")]
+#[command(description = "D&D Scheduler Bot commands:")]
 pub enum Command {
     #[command(description = "Display this help message")]
     Help,

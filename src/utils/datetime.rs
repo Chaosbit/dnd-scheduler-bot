@@ -4,7 +4,12 @@ use anyhow::{Result, anyhow};
 pub fn parse_datetime(input: &str) -> Result<DateTime<Utc>> {
     let input = input.trim();
     
-    // Handle simple formats first - "Friday Dec 1st 7pm"
+    // Handle European date format first - "15.08.25 19:00", "01.12.24 14:30", etc.
+    if let Ok(datetime) = parse_european_date_format(input) {
+        return Ok(datetime);
+    }
+    
+    // Handle simple formats - "Friday Dec 1st 7pm"
     if let Ok(datetime) = parse_natural_format(input) {
         return Ok(datetime);
     }
@@ -19,6 +24,77 @@ pub fn parse_datetime(input: &str) -> Result<DateTime<Utc>> {
     let default_time = tomorrow.date_naive().and_hms_opt(19, 0, 0)
         .ok_or_else(|| anyhow!("Failed to create default time"))?;
     Ok(Utc.from_utc_datetime(&default_time))
+}
+
+fn parse_european_date_format(input: &str) -> Result<DateTime<Utc>> {
+    // Parse European date formats like "15.08.25 19:00", "01.12.24 14:30", "25.12.2024 20:00"
+    let input = input.trim();
+    
+    // Look for pattern: dd.mm.yy time or dd.mm.yyyy time
+    let parts: Vec<&str> = input.split_whitespace().collect();
+    if parts.len() < 2 {
+        return Err(anyhow!("Invalid European date format"));
+    }
+    
+    let date_part = parts[0];
+    let time_part = parts[1];
+    
+    // Parse date: dd.mm.yy or dd.mm.yyyy
+    let date_components: Vec<&str> = date_part.split('.').collect();
+    if date_components.len() != 3 {
+        return Err(anyhow!("Date must be in dd.mm.yy or dd.mm.yyyy format"));
+    }
+    
+    let day: u32 = date_components[0].parse()
+        .map_err(|_| anyhow!("Invalid day"))?;
+    let month: u32 = date_components[1].parse()
+        .map_err(|_| anyhow!("Invalid month"))?;
+    let year_str = date_components[2];
+    
+    // Handle 2-digit or 4-digit years
+    let year: i32 = if year_str.len() == 2 {
+        let year_2digit: u32 = year_str.parse()
+            .map_err(|_| anyhow!("Invalid year"))?;
+        // Assume 00-30 is 2000s, 31-99 is 1900s (but for scheduling, probably all 2000s)
+        if year_2digit <= 30 {
+            2000 + year_2digit as i32
+        } else {
+            1900 + year_2digit as i32
+        }
+    } else if year_str.len() == 4 {
+        year_str.parse()
+            .map_err(|_| anyhow!("Invalid year"))?
+    } else {
+        return Err(anyhow!("Year must be 2 or 4 digits"));
+    };
+    
+    // Parse time: HH:MM or HH.MM
+    let (hour, minute) = if let Some(time_match) = extract_time_24h(time_part) {
+        time_match
+    } else {
+        return Err(anyhow!("Invalid time format"));
+    };
+    
+    // Validate ranges more strictly
+    if day < 1 || day > 31 || month < 1 || month > 12 {
+        return Err(anyhow!("Invalid date values"));
+    }
+    
+    // Additional day validation based on month
+    if month == 2 && day > 29 {
+        return Err(anyhow!("Invalid day for February"));
+    }
+    if (month == 4 || month == 6 || month == 9 || month == 11) && day > 30 {
+        return Err(anyhow!("Invalid day for this month"));
+    }
+    
+    // Create the datetime
+    let naive_date = chrono::NaiveDate::from_ymd_opt(year, month, day)
+        .ok_or_else(|| anyhow!("Invalid date"))?;
+    let naive_datetime = naive_date.and_hms_opt(hour, minute, 0)
+        .ok_or_else(|| anyhow!("Invalid time"))?;
+    
+    Ok(Utc.from_utc_datetime(&naive_datetime))
 }
 
 fn parse_natural_format(input: &str) -> Result<DateTime<Utc>> {
@@ -271,5 +347,74 @@ mod tests {
             let dt = result.unwrap();
             assert_eq!(dt.hour(), expected_hour, "Wrong hour for: {}", input);
         }
+    }
+
+    #[test]
+    fn test_parse_european_date_format_2_digit_year() {
+        let result = parse_datetime("15.08.25 19:00");
+        assert!(result.is_ok(), "Failed to parse European date format");
+        let dt = result.unwrap();
+        assert_eq!(dt.day(), 15);
+        assert_eq!(dt.month(), 8);
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+    }
+
+    #[test]
+    fn test_parse_european_date_format_4_digit_year() {
+        let result = parse_datetime("01.12.2024 14:30");
+        assert!(result.is_ok(), "Failed to parse European date format");
+        let dt = result.unwrap();
+        assert_eq!(dt.day(), 1);
+        assert_eq!(dt.month(), 12);
+        assert_eq!(dt.year(), 2024);
+        assert_eq!(dt.hour(), 14);
+        assert_eq!(dt.minute(), 30);
+    }
+
+    #[test]
+    fn test_parse_european_date_format_dot_time() {
+        let result = parse_datetime("25.12.24 20.15");
+        assert!(result.is_ok(), "Failed to parse European date format with dot time");
+        let dt = result.unwrap();
+        assert_eq!(dt.day(), 25);
+        assert_eq!(dt.month(), 12);
+        assert_eq!(dt.year(), 2024);
+        assert_eq!(dt.hour(), 20);
+        assert_eq!(dt.minute(), 15);
+    }
+
+    #[test]
+    fn test_parse_european_date_format_user_case() {
+        // Test the specific user case that was reported
+        let result = parse_datetime("15.08.25 19:00");
+        assert!(result.is_ok(), "Failed to parse user's European date format");
+        let dt = result.unwrap();
+        assert_eq!(dt.day(), 15);
+        assert_eq!(dt.month(), 8);
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.hour(), 19);
+        assert_eq!(dt.minute(), 0);
+        
+        // Additional user-friendly formats should work
+        assert!(parse_datetime("01.12.24 14:30").is_ok());
+        assert!(parse_datetime("31.12.2024 23:30").is_ok());
+    }
+
+    #[test]
+    fn test_parse_european_date_format_year_logic() {
+        // Test 2-digit year logic
+        let result_25 = parse_datetime("01.01.25 12:00");
+        assert!(result_25.is_ok());
+        assert_eq!(result_25.unwrap().year(), 2025);
+
+        let result_99 = parse_datetime("01.01.99 12:00");
+        assert!(result_99.is_ok());
+        assert_eq!(result_99.unwrap().year(), 1999);
+
+        let result_00 = parse_datetime("01.01.00 12:00");
+        assert!(result_00.is_ok());
+        assert_eq!(result_00.unwrap().year(), 2000);
     }
 }
