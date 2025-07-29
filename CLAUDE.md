@@ -71,9 +71,20 @@ src/
 - `DATABASE_URL` - SQLite database file path (required for build)
 - `TELOXIDE_TOKEN` - Telegram bot token (required for runtime)
 
+## Git Workflow Guidelines
+Please use clean git flow when working on this project:
+1. Create feature branches for new work: `git checkout -b feature/description`
+2. Make focused commits with descriptive messages
+3. Use conventional commit format when possible: `feat:`, `fix:`, `test:`, `refactor:`
+4. Keep commits atomic - one logical change per commit
+5. Test before committing: run `cargo test` and `cargo check`
+6. Add comprehensive commit messages explaining what and why
+
 ## Recent Fixes Applied
 1. Fixed sqlx version compatibility with teloxide (downgraded from 0.7 to 0.6)
 2. Resolved database model type mismatches for SQLite compatibility
 3. Added Clone derive to DatabaseManager for dependency injection
 4. Fixed handler dependency injection using closure approach
 5. Removed RETURNING clauses for SQLite compatibility
+6. Added comprehensive feedback system with progress tracking and user-friendly messages
+7. Created extensive test coverage for command parsing, validation, and feedback systems
