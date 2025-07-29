@@ -2,7 +2,8 @@ use teloxide::prelude::*;
 use crate::database::{connection::DatabaseManager, models::*};
 use crate::utils::{
     datetime::{parse_datetime, format_datetime},
-    feedback::CommandFeedback
+    feedback::CommandFeedback,
+    validation::validate_session_id
 };
 use chrono::Utc;
 
@@ -18,6 +19,13 @@ pub async fn handle_confirm(
     
     // Send processing message
     let processing_msg = feedback.send_processing("Confirming session...").await?;
+    
+    // Validate session ID format
+    if let Err(e) = validate_session_id(&session_id) {
+        let suggestion = "Session IDs must be 8-50 characters long and contain only letters, numbers, and hyphens. Use /list to see valid session IDs.";
+        feedback.validation_error(&e.to_string(), suggestion).await?;
+        return Ok(());
+    }
     
     // Validate session exists and belongs to this group
     let session = match Session::find_by_id(&db.pool, &session_id).await {
@@ -174,6 +182,13 @@ pub async fn handle_cancel(
     // Send processing message
     let processing_msg = feedback.send_processing("Cancelling session...").await?;
     
+    // Validate session ID format
+    if let Err(e) = validate_session_id(&session_id) {
+        let suggestion = "Session IDs must be 8-50 characters long and contain only letters, numbers, and hyphens. Use /list to see valid session IDs.";
+        feedback.validation_error(&e.to_string(), suggestion).await?;
+        return Ok(());
+    }
+    
     // Validate session exists and belongs to this group
     let session = match Session::find_by_id(&db.pool, &session_id).await {
         Ok(Some(session)) => session,
@@ -264,6 +279,13 @@ pub async fn handle_deadline(
     
     // Send processing message
     let processing_msg = feedback.send_processing("Setting session deadline...").await?;
+    
+    // Validate session ID format
+    if let Err(e) = validate_session_id(&session_id) {
+        let suggestion = "Session IDs must be 8-50 characters long and contain only letters, numbers, and hyphens. Use /list to see valid session IDs.";
+        feedback.validation_error(&e.to_string(), suggestion).await?;
+        return Ok(());
+    }
     
     // Validate session exists and belongs to this group
     let session = match Session::find_by_id(&db.pool, &session_id).await {

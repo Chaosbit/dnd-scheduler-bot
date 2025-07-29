@@ -94,6 +94,34 @@ pub fn validate_time_options(options: &str) -> Result<Vec<String>> {
     Ok(option_list)
 }
 
+pub fn validate_session_id(session_id: &str) -> Result<()> {
+    let session_id = session_id.trim();
+    
+    if session_id.is_empty() {
+        return Err(anyhow!("Session ID cannot be empty"));
+    }
+    
+    if session_id.len() < 8 {
+        return Err(anyhow!("Session ID must be at least 8 characters long"));
+    }
+    
+    if session_id.len() > 50 {
+        return Err(anyhow!("Session ID cannot be longer than 50 characters"));
+    }
+    
+    // Session IDs should contain only alphanumeric characters and hyphens
+    if !session_id.chars().all(|c| c.is_alphanumeric() || c == '-') {
+        return Err(anyhow!("Session ID can only contain letters, numbers, and hyphens"));
+    }
+    
+    // Must start with alphanumeric character
+    if !session_id.chars().next().unwrap().is_alphanumeric() {
+        return Err(anyhow!("Session ID must start with a letter or number"));
+    }
+    
+    Ok(())
+}
+
 pub fn validate_response_type(response: &str) -> Result<()> {
     match response.to_lowercase().as_str() {
         "yes" | "no" | "maybe" => Ok(()),
@@ -239,5 +267,40 @@ mod tests {
     fn test_validate_response_type_edge_cases() {
         assert!(validate_response_type("  yes  ").is_err()); // Whitespace not trimmed
         assert!(validate_response_type("yes\n").is_err());   // With newline
+    }
+
+    #[test]
+    fn test_validate_session_id_valid() {
+        assert!(validate_session_id("abc12345").is_ok());
+        assert!(validate_session_id("session-123-abc").is_ok());
+        assert!(validate_session_id("12345678").is_ok());
+        assert!(validate_session_id("abcdefgh").is_ok());
+        assert!(validate_session_id("550e8400-e29b-41d4-a716-446655440000").is_ok()); // UUID format
+        assert!(validate_session_id("  abc12345  ").is_ok()); // Trimmed
+    }
+
+    #[test]
+    fn test_validate_session_id_invalid() {
+        // Empty
+        assert!(validate_session_id("").is_err());
+        assert!(validate_session_id("   ").is_err());
+        
+        // Too short
+        assert!(validate_session_id("abc123").is_err());
+        assert!(validate_session_id("1234567").is_err());
+        
+        // Too long
+        let long_id = "a".repeat(51);
+        assert!(validate_session_id(&long_id).is_err());
+        
+        // Invalid characters
+        assert!(validate_session_id("abc123@#$").is_err());
+        assert!(validate_session_id("abc_123").is_err());
+        assert!(validate_session_id("abc.123").is_err());
+        assert!(validate_session_id("abc 123").is_err());
+        
+        // Must start with alphanumeric
+        assert!(validate_session_id("-abc123").is_err());
+        assert!(validate_session_id("_abc123").is_err());
     }
 }
