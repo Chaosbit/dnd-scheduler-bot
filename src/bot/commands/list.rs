@@ -31,16 +31,24 @@ pub async fn handle_list(
         }
     };
     
-    // Get all active sessions for this group
-    let sessions = match get_sessions_by_group(&db.pool, group.id).await {
-        Ok(sessions) => {
+    // Get all active sessions for this group with timeout
+    let sessions = match tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        get_sessions_by_group(&db.pool, group.id)
+    ).await {
+        Ok(Ok(sessions)) => {
             feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
                 &format!("Found {} sessions, loading details...", sessions.len())).await?;
             sessions
         },
-        Err(e) => {
+        Ok(Err(e)) => {
             tracing::error!("Failed to get sessions: {}", e);
             feedback.error("Failed to retrieve sessions from database").await?;
+            return Ok(());
+        }
+        Err(_) => {
+            tracing::error!("Timeout fetching sessions");
+            feedback.error("Database query timeout - please try again").await?;
             return Ok(());
         }
     };
@@ -56,25 +64,42 @@ pub async fn handle_list(
     // Batch fetch all session options and responses to avoid N+1 queries
     let session_ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
     
-    let all_options = match SessionOption::find_by_sessions(&db.pool, &session_ids).await {
-        Ok(options) => options,
-        Err(e) => {
+    // Add timeout and better error handling for batch operations
+    let all_options = match tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        SessionOption::find_by_sessions(&db.pool, &session_ids)
+    ).await {
+        Ok(Ok(options)) => options,
+        Ok(Err(e)) => {
             tracing::error!("Failed to batch fetch session options: {}", e);
             feedback.error("Failed to load session time options from database").await?;
             return Ok(());
         }
+        Err(_) => {
+            tracing::error!("Timeout fetching session options");
+            feedback.error("Database query timeout - please try again").await?;
+            return Ok(());
+        }
     };
     
-    let all_responses = match Response::find_by_sessions(&db.pool, &session_ids).await {
-        Ok(responses) => {
-            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
-                "Loading voting data...").await?;
-            responses
-        },
-        Err(e) => {
+    feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+        "Loading voting data...").await?;
+    
+    let all_responses = match tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        Response::find_by_sessions(&db.pool, &session_ids)
+    ).await {
+        Ok(Ok(responses)) => responses,
+        Ok(Err(e)) => {
             tracing::warn!("Failed to batch fetch responses: {}", e);
             feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
                 "Generating session list (voting data unavailable)...").await?;
+            Vec::new()
+        }
+        Err(_) => {
+            tracing::warn!("Timeout fetching responses - continuing without voting data");
+            feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
+                "Generating session list (voting data timeout)...").await?;
             Vec::new()
         }
     };
