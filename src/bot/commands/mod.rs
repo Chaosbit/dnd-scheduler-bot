@@ -73,7 +73,7 @@ fn parse_deadline_args(input: String) -> Result<(String, String), teloxide::util
 }
 
 #[derive(BotCommands, Clone)]
-#[command(description = "D&D Scheduler Bot commands:")]
+#[command(description = "D&D Scheduler Bot commands:", rename_rule = "lowercase")]
 pub enum Command {
     #[command(description = "Display this help message")]
     Help,
