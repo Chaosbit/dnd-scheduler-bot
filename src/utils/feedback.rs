@@ -86,6 +86,7 @@ impl CommandFeedback {
     }
 
     /// Send detailed command help with formatting
+    #[allow(dead_code)]
     pub async fn send_command_help(&self, command: &str, description: &str, examples: &[&str]) -> ResponseResult<Message> {
         let mut help_text = format!("**{}**\n\n{}\n\n", escape_markdown(command), escape_markdown(description));
         

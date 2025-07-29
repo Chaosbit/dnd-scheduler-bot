@@ -54,6 +54,7 @@ impl Reminder {
         Ok(count > 0)
     }
     
+    #[allow(dead_code)]
     pub async fn find_by_session(
         pool: &sqlx::SqlitePool,
         session_id: &str,
