@@ -39,19 +39,30 @@ async fn main() -> Result<()> {
     let config = Config::from_env()?;
     
     info!("Starting D&D Scheduler Bot v{}", env!("CARGO_PKG_VERSION"));
+    info!("Configuration loaded - Database: {}, HTTP Port: {}", 
+        config.database_url, config.http_port);
 
     // Initialize database
+    info!("Initializing database connection...");
     let db_manager = DatabaseManager::new(&config.database_url).await?;
+    info!("Running database migrations...");
     db_manager.run_migrations().await?;
     let db_arc = Arc::new(db_manager);
+    info!("Database initialized successfully");
     
     // Initialize bot
+    info!("Initializing Telegram bot...");
     let bot = Bot::new(&config.telegram_bot_token);
     let handler = BotHandler::new(db_arc.as_ref().clone());
+    info!("Telegram bot initialized successfully");
     
     // Initialize and start reminder service
+    info!("Initializing reminder service...");
     let mut reminder_service = match ReminderService::new(bot.clone(), db_arc.clone()).await {
-        Ok(service) => service,
+        Ok(service) => {
+            info!("Reminder service initialized successfully");
+            service
+        },
         Err(e) => {
             tracing::error!("Failed to create reminder service: {}", e);
             return Err(anyhow::anyhow!("Failed to create reminder service: {}", e));

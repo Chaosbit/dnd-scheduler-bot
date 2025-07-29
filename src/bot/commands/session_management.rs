@@ -15,22 +15,36 @@ pub async fn handle_confirm(
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
     let user_id = msg.from().map(|u| u.id.0 as i64).unwrap_or(0);
+    let username = msg.from().and_then(|u| u.username.as_ref()).map_or("unknown", |v| v);
+    
+    tracing::info!(
+        "Confirm command initiated by user {} ({}) in chat {} for session '{}'",
+        username, user_id, chat_id, session_id
+    );
+    
     let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
     
     // Send processing message
     let processing_msg = feedback.send_processing("Confirming session...").await?;
     
     // Validate session ID format
+    tracing::debug!("Validating session ID format: '{}'", session_id);
     if let Err(e) = validate_session_id(&session_id) {
+        tracing::warn!("Session ID validation failed for '{}': {}", session_id, e);
         let suggestion = "Session IDs must be 8-50 characters long and contain only letters, numbers, and hyphens. Use /list to see valid session IDs.";
         feedback.validation_error(&e.to_string(), suggestion).await?;
         return Ok(());
     }
     
     // Validate session exists and belongs to this group
+    tracing::debug!("Looking up session: '{}'", session_id);
     let session = match Session::find_by_id(&db.pool, &session_id).await {
-        Ok(Some(session)) => session,
+        Ok(Some(session)) => {
+            tracing::debug!("Found session '{}' with title '{}' in group {}", session_id, session.title, session.group_id);
+            session
+        },
         Ok(None) => {
+            tracing::warn!("Session not found: '{}'", session_id);
             let error_msg = "Session not found";
             let suggestion = format!("Please check the session ID. Use /list to see active sessions.");
             feedback.validation_error(error_msg, &suggestion).await?;

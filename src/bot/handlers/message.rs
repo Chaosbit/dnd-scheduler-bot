@@ -10,6 +10,16 @@ pub async fn command_handler(
     cmd: Command,
     db: DatabaseManager,
 ) -> ResponseResult<()> {
+    let chat_id = msg.chat.id.0;
+    let user_id = msg.from().map(|u| u.id.0).unwrap_or(0);
+    let username = msg.from().and_then(|u| u.username.as_ref()).map_or("unknown", |v| v);
+    let chat_type = format!("{:?}", msg.chat.kind);
+    
+    tracing::info!(
+        "Command received: {:?} from user {} ({}) in chat {} ({})",
+        cmd, username, user_id, chat_id, chat_type
+    );
+    
     match cmd {
         Command::Help => {
             let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);

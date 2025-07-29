@@ -15,7 +15,15 @@ pub async fn callback_handler(
     q: CallbackQuery,
     db: DatabaseManager,
 ) -> ResponseResult<()> {
+    let user_id = q.from.id.0;
+    let username = q.from.username.as_ref().map_or("unknown", |v| v);
+    let chat_id = q.message.as_ref().map(|m| m.chat.id.0).unwrap_or(0);
+    
     if let Some(data) = q.data.clone() {
+        tracing::info!(
+            "Callback received: '{}' from user {} ({}) in chat {}",
+            data, username, user_id, chat_id
+        );
         // Handle settings callbacks
         if data.starts_with("settings:") {
             return handle_settings_callback(bot, q, data, &db).await;

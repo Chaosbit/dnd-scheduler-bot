@@ -10,50 +10,69 @@ pub async fn handle_list(
     db: &DatabaseManager,
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id.0;
+    let user_id = msg.from().map(|u| u.id.0).unwrap_or(0);
+    let username = msg.from().and_then(|u| u.username.as_ref()).map_or("unknown", |v| v);
+    
+    tracing::info!(
+        "List command initiated by user {} ({}) in chat {}",
+        username, user_id, chat_id
+    );
+    
     let feedback = CommandFeedback::new(bot.clone(), msg.chat.id);
     
     // Send processing message
     let processing_msg = feedback.send_processing("Loading active sessions...").await?;
     
     // Get the group
+    tracing::debug!("Looking up group for chat_id: {}", chat_id);
     let group = match Group::find_by_chat_id(&db.pool, chat_id).await {
-        Ok(Some(group)) => group,
+        Ok(Some(group)) => {
+            tracing::debug!("Found group {} for chat {}", group.id, chat_id);
+            group
+        },
         Ok(None) => {
+            tracing::info!("No group found for chat_id: {}", chat_id);
             let error_msg = "No sessions found for this group";
             let suggestion = "Create your first session with /schedule \"Session Title\" \"Friday 19:00, Saturday 14:30\"";
             feedback.validation_error(error_msg, suggestion).await?;
             return Ok(());
         }
         Err(e) => {
-            tracing::error!("Failed to find group: {}", e);
+            tracing::error!("Database error finding group for chat_id {}: {}", chat_id, e);
             feedback.error("Failed to retrieve group information from database").await?;
             return Ok(());
         }
     };
     
     // Get all active sessions for this group with timeout
+    tracing::debug!("Fetching sessions for group_id: {}", group.id);
     let sessions = match tokio::time::timeout(
         std::time::Duration::from_secs(10),
         get_sessions_by_group(&db.pool, group.id)
     ).await {
         Ok(Ok(sessions)) => {
+            tracing::info!(
+                "Found {} sessions for group {} in chat {}",
+                sessions.len(), group.id, chat_id
+            );
             feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
                 &format!("Found {} sessions, loading details...", sessions.len())).await?;
             sessions
         },
         Ok(Err(e)) => {
-            tracing::error!("Failed to get sessions: {}", e);
+            tracing::error!("Database error fetching sessions for group {}: {}", group.id, e);
             feedback.error("Failed to retrieve sessions from database").await?;
             return Ok(());
         }
         Err(_) => {
-            tracing::error!("Timeout fetching sessions");
+            tracing::error!("Timeout fetching sessions for group {} after 10 seconds", group.id);
             feedback.error("Database query timeout - please try again").await?;
             return Ok(());
         }
     };
     
     if sessions.is_empty() {
+        tracing::info!("No active sessions found for group {} in chat {}", group.id, chat_id);
         let info_message = "No active sessions found\\n\\n📋 This group doesn't have any active or confirmed sessions\\n\\n💡 Create your first session with:\\n`/schedule \"Session Title\" \"Friday 19:00, Saturday 14:30\"`";
         feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Info, info_message).await?;
         return Ok(());
@@ -65,18 +84,22 @@ pub async fn handle_list(
     let session_ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
     
     // Add timeout and better error handling for batch operations
+    tracing::debug!("Fetching session options for {} sessions: {:?}", session_ids.len(), session_ids);
     let all_options = match tokio::time::timeout(
         std::time::Duration::from_secs(10),
         SessionOption::find_by_sessions(&db.pool, &session_ids)
     ).await {
-        Ok(Ok(options)) => options,
+        Ok(Ok(options)) => {
+            tracing::debug!("Successfully fetched {} session options", options.len());
+            options
+        },
         Ok(Err(e)) => {
-            tracing::error!("Failed to batch fetch session options: {}", e);
+            tracing::error!("Database error batch fetching session options for sessions {:?}: {}", session_ids, e);
             feedback.error("Failed to load session time options from database").await?;
             return Ok(());
         }
         Err(_) => {
-            tracing::error!("Timeout fetching session options");
+            tracing::error!("Timeout fetching session options for sessions {:?} after 10 seconds", session_ids);
             feedback.error("Database query timeout - please try again").await?;
             return Ok(());
         }
@@ -85,19 +108,23 @@ pub async fn handle_list(
     feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
         "Loading voting data...").await?;
     
+    tracing::debug!("Fetching responses for {} sessions: {:?}", session_ids.len(), session_ids);
     let all_responses = match tokio::time::timeout(
         std::time::Duration::from_secs(10),
         Response::find_by_sessions(&db.pool, &session_ids)
     ).await {
-        Ok(Ok(responses)) => responses,
+        Ok(Ok(responses)) => {
+            tracing::debug!("Successfully fetched {} responses", responses.len());
+            responses
+        },
         Ok(Err(e)) => {
-            tracing::warn!("Failed to batch fetch responses: {}", e);
+            tracing::warn!("Database error batch fetching responses for sessions {:?}: {}", session_ids, e);
             feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
                 "Generating session list (voting data unavailable)...").await?;
             Vec::new()
         }
         Err(_) => {
-            tracing::warn!("Timeout fetching responses - continuing without voting data");
+            tracing::warn!("Timeout fetching responses for sessions {:?} after 10 seconds - continuing without voting data", session_ids);
             feedback.update_message(processing_msg.id, crate::utils::feedback::FeedbackType::Processing, 
                 "Generating session list (voting data timeout)...").await?;
             Vec::new()
