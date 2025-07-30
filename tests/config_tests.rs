@@ -1,8 +1,14 @@
 use dnd_scheduler_bot::config::Config;
 use std::env;
+use std::sync::Mutex;
+
+// Mutex to ensure config tests run sequentially to avoid environment variable conflicts
+static CONFIG_TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_config_from_env_with_all_vars() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     // Set all environment variables
     env::set_var("TELEGRAM_BOT_TOKEN", "test_token_123");
     env::set_var("DATABASE_URL", "sqlite:test.db");
@@ -22,6 +28,8 @@ fn test_config_from_env_with_all_vars() {
 
 #[test]
 fn test_config_from_env_with_defaults() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     // Only set required token, let others use defaults
     env::set_var("TELEGRAM_BOT_TOKEN", "required_token");
     env::remove_var("DATABASE_URL");
@@ -39,6 +47,8 @@ fn test_config_from_env_with_defaults() {
 
 #[test]
 fn test_config_missing_required_token() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     // Remove the required token
     env::remove_var("TELEGRAM_BOT_TOKEN");
     
@@ -51,6 +61,8 @@ fn test_config_missing_required_token() {
 
 #[test]
 fn test_config_invalid_port() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     env::set_var("TELEGRAM_BOT_TOKEN", "test_token");
     env::set_var("HTTP_PORT", "invalid_port");
     
@@ -67,6 +79,8 @@ fn test_config_invalid_port() {
 
 #[test]
 fn test_config_port_edge_cases() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     env::set_var("TELEGRAM_BOT_TOKEN", "test_token");
     
     // Test port 0
@@ -91,6 +105,8 @@ fn test_config_port_edge_cases() {
 
 #[test]
 fn test_config_empty_values() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     // Test empty token (should fail)
     env::set_var("TELEGRAM_BOT_TOKEN", "");
     let result = Config::from_env();
@@ -109,6 +125,8 @@ fn test_config_empty_values() {
 
 #[test]
 fn test_config_whitespace_handling() {
+    let _guard = CONFIG_TEST_MUTEX.lock().unwrap();
+    
     env::set_var("TELEGRAM_BOT_TOKEN", "  token_with_spaces  ");
     env::set_var("DATABASE_URL", "  sqlite:spaced.db  ");
     env::set_var("HTTP_PORT", "  3000  ");
