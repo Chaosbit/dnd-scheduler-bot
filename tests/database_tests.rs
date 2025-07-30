@@ -1,9 +1,9 @@
 use anyhow::Result;
 use chrono::Utc;
 use dnd_scheduler_bot::database::{connection::DatabaseManager, models::*};
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 
-async fn setup_test_db() -> Result<DatabaseManager> {
+async fn setup_test_db() -> Result<(DatabaseManager, TempDir)> {
     let temp_dir = tempdir()?;
     let db_path = temp_dir.path().join("test.db");
     let database_url = format!("sqlite:{}", db_path.display());
@@ -11,12 +11,12 @@ async fn setup_test_db() -> Result<DatabaseManager> {
     let db_manager = DatabaseManager::new(&database_url).await?;
     db_manager.run_migrations().await?;
     
-    Ok(db_manager)
+    Ok((db_manager, temp_dir))
 }
 
 #[tokio::test]
 async fn test_group_creation_and_retrieval() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     
     // Test group creation
@@ -38,7 +38,7 @@ async fn test_group_creation_and_retrieval() -> Result<()> {
 
 #[tokio::test]
 async fn test_group_not_found() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let non_existent_chat_id = 99999i64;
     
     let result = Group::find_by_chat_id(&db.pool, non_existent_chat_id).await?;
@@ -49,7 +49,7 @@ async fn test_group_not_found() -> Result<()> {
 
 #[tokio::test]
 async fn test_session_creation_and_retrieval() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     let user_id = 67890i64;
     
@@ -78,7 +78,7 @@ async fn test_session_creation_and_retrieval() -> Result<()> {
 
 #[tokio::test]
 async fn test_session_not_found() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let non_existent_id = "non-existent-uuid";
     
     let result = Session::find_by_id(&db.pool, non_existent_id).await?;
@@ -89,7 +89,7 @@ async fn test_session_not_found() -> Result<()> {
 
 #[tokio::test]
 async fn test_session_option_creation() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     let user_id = 67890i64;
     
@@ -122,7 +122,7 @@ async fn test_session_option_creation() -> Result<()> {
 
 #[tokio::test]
 async fn test_response_upsert() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     let user_id = 67890i64;
     
@@ -174,7 +174,7 @@ async fn test_response_upsert() -> Result<()> {
 
 #[tokio::test]
 async fn test_multiple_users_responses() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     
     // Create group, session, and option
@@ -219,7 +219,7 @@ async fn test_multiple_users_responses() -> Result<()> {
 
 #[tokio::test]
 async fn test_database_constraints() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     
     // Test unique constraint on telegram_chat_id
@@ -234,7 +234,7 @@ async fn test_database_constraints() -> Result<()> {
 
 #[tokio::test]
 async fn test_foreign_key_relationships() -> Result<()> {
-    let db = setup_test_db().await?;
+    let (db, _temp_dir) = setup_test_db().await?;
     let chat_id = 12345i64;
     let user_id = 67890i64;
     

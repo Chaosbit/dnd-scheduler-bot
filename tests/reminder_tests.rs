@@ -2,31 +2,34 @@
 
 use dnd_scheduler_bot::database::models::{Reminder, Session, Group, SessionOption};
 use dnd_scheduler_bot::database::connection::DatabaseManager;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 use chrono::{Utc, Duration};
 
-async fn setup_test_db() -> DatabaseManager {
+async fn setup_test_db() -> (DatabaseManager, TempDir) {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("test.db");
     let db_url = format!("sqlite:{}", db_path.to_string_lossy());
     
     let db = DatabaseManager::new(&db_url).await.unwrap();
     db.run_migrations().await.unwrap();
-    db
+    (db, dir)
 }
 
 #[tokio::test]
 async fn test_reminder_creation() {
-    let db = setup_test_db().await;
+    let (db, _temp_dir) = setup_test_db().await;
     
-    let session_id = "test-session-123".to_string();
+    // Create group and session first for foreign key constraint
+    let group = Group::create(&db.pool, 12345).await.unwrap();
+    let session = Session::create(&db.pool, group.id, "Test Session".to_string(), 67890).await.unwrap();
+    
     let days_before = 7i64;
     
-    let reminder = Reminder::create(&db.pool, session_id.clone(), days_before)
+    let reminder = Reminder::create(&db.pool, session.id.clone(), days_before)
         .await
         .unwrap();
     
-    assert_eq!(reminder.session_id, session_id);
+    assert_eq!(reminder.session_id, session.id);
     assert_eq!(reminder.days_before, days_before);
     assert!(!reminder.id.is_empty());
     assert!(!reminder.sent_at.is_empty());
@@ -34,30 +37,33 @@ async fn test_reminder_creation() {
 
 #[tokio::test] 
 async fn test_reminder_exists() {
-    let db = setup_test_db().await;
+    let (db, _temp_dir) = setup_test_db().await;
     
-    let session_id = "test-session-456".to_string();
+    // Create group and session first for foreign key constraint
+    let group = Group::create(&db.pool, 12346).await.unwrap();
+    let session = Session::create(&db.pool, group.id, "Test Session 2".to_string(), 67891).await.unwrap();
+    
     let days_before = 14i64;
     
     // Should not exist initially
-    let exists = Reminder::exists(&db.pool, &session_id, days_before)
+    let exists = Reminder::exists(&db.pool, &session.id, days_before)
         .await
         .unwrap();
     assert!(!exists);
     
     // Create reminder
-    Reminder::create(&db.pool, session_id.clone(), days_before)
+    Reminder::create(&db.pool, session.id.clone(), days_before)
         .await
         .unwrap();
     
     // Should exist now
-    let exists = Reminder::exists(&db.pool, &session_id, days_before)
+    let exists = Reminder::exists(&db.pool, &session.id, days_before)
         .await
         .unwrap();
     assert!(exists);
     
     // Different days_before should not exist
-    let exists_different = Reminder::exists(&db.pool, &session_id, 3)
+    let exists_different = Reminder::exists(&db.pool, &session.id, 3)
         .await
         .unwrap();
     assert!(!exists_different);
@@ -65,16 +71,18 @@ async fn test_reminder_exists() {
 
 #[tokio::test]
 async fn test_reminder_find_by_session() {
-    let db = setup_test_db().await;
+    let (db, _temp_dir) = setup_test_db().await;
     
-    let session_id = "test-session-789".to_string();
+    // Create group and session first for foreign key constraint
+    let group = Group::create(&db.pool, 12347).await.unwrap();
+    let session = Session::create(&db.pool, group.id, "Test Session 3".to_string(), 67892).await.unwrap();
     
     // Create multiple reminders for same session
-    Reminder::create(&db.pool, session_id.clone(), 14).await.unwrap();
-    Reminder::create(&db.pool, session_id.clone(), 7).await.unwrap();
-    Reminder::create(&db.pool, session_id.clone(), 3).await.unwrap();
+    Reminder::create(&db.pool, session.id.clone(), 14).await.unwrap();
+    Reminder::create(&db.pool, session.id.clone(), 7).await.unwrap();
+    Reminder::create(&db.pool, session.id.clone(), 3).await.unwrap();
     
-    let reminders = Reminder::find_by_session(&db.pool, &session_id)
+    let reminders = Reminder::find_by_session(&db.pool, &session.id)
         .await
         .unwrap();
     
@@ -87,28 +95,31 @@ async fn test_reminder_find_by_session() {
     
     // All should have same session_id
     for reminder in &reminders {
-        assert_eq!(reminder.session_id, session_id);
+        assert_eq!(reminder.session_id, session.id);
     }
 }
 
 #[tokio::test]
 async fn test_reminder_unique_constraint() {
-    let db = setup_test_db().await;
+    let (db, _temp_dir) = setup_test_db().await;
     
-    let session_id = "test-session-unique".to_string();
+    // Create group and session first for foreign key constraint
+    let group = Group::create(&db.pool, 12348).await.unwrap();
+    let session = Session::create(&db.pool, group.id, "Test Session 4".to_string(), 67893).await.unwrap();
+    
     let days_before = 7i64;
     
     // Create first reminder
-    let first = Reminder::create(&db.pool, session_id.clone(), days_before)
+    let first = Reminder::create(&db.pool, session.id.clone(), days_before)
         .await
         .unwrap();
     
     // Attempting to create duplicate should fail
-    let result = Reminder::create(&db.pool, session_id.clone(), days_before).await;
+    let result = Reminder::create(&db.pool, session.id.clone(), days_before).await;
     assert!(result.is_err());
     
     // But different days_before should work
-    let different = Reminder::create(&db.pool, session_id.clone(), 3)
+    let different = Reminder::create(&db.pool, session.id.clone(), 3)
         .await
         .unwrap();
     
@@ -118,7 +129,7 @@ async fn test_reminder_unique_constraint() {
 
 #[tokio::test]
 async fn test_reminder_with_real_session() {
-    let db = setup_test_db().await;
+    let (db, _temp_dir) = setup_test_db().await;
     
     // Create group first
     let group = Group::create(&db.pool, 12345).await.unwrap();
@@ -152,7 +163,7 @@ async fn test_reminder_with_real_session() {
 
 #[tokio::test]
 async fn test_reminder_cleanup_on_session_delete() {
-    let db = setup_test_db().await;
+    let (db, _temp_dir) = setup_test_db().await;
     
     // Create group and session
     let group = Group::create(&db.pool, 54321).await.unwrap();
