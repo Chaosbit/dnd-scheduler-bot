@@ -80,6 +80,16 @@ Please use clean git flow when working on this project:
 5. Test before committing: run `cargo test` and `cargo check`
 6. Add comprehensive commit messages explaining what and why
 
+## Code Quality Standards
+**IMPORTANT**: Always address compiler warnings and linter messages before completing work:
+1. **Compiler warnings**: Run `cargo build` and fix all warnings (missing docs, unused code, etc.)
+2. **Dead code warnings**: Remove unused functions or add `#[allow(dead_code)]` with justification
+3. **Linting**: Use `cargo clippy` to catch additional issues
+4. **Documentation**: Add missing documentation for public items when required
+5. **Testing**: Ensure all tests pass with `cargo test`
+
+Never leave warnings unaddressed - clean, warning-free code is essential for maintainability.
+
 ## Recent Fixes Applied
 1. Fixed sqlx version compatibility with teloxide (downgraded from 0.7 to 0.6)
 2. Resolved database model type mismatches for SQLite compatibility

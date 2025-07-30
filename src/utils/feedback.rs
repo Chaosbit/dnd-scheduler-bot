@@ -105,7 +105,7 @@ impl CommandFeedback {
 
     /// Send validation error with helpful suggestion
     pub async fn validation_error(&self, error: &str, suggestion: &str) -> ResponseResult<Message> {
-        let message = format!("{}\n\n💡 **Suggestion:** {}", error, suggestion);
+        let message = format!("{error}\n\n💡 **Suggestion:** {suggestion}");
         self.send(FeedbackType::Error, &message).await
     }
 }

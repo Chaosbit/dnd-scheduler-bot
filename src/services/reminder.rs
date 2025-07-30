@@ -133,10 +133,7 @@ async fn send_session_reminder(
     };
     
     // Get participants who said "yes"
-    let responses = match Response::find_by_session(&db.pool, &session.id).await {
-        Ok(r) => r,
-        Err(_) => Vec::new(),
-    };
+    let responses: Vec<crate::database::models::response::Response> = Response::find_by_session(&db.pool, &session.id).await.unwrap_or_default();
     
     let participants: Vec<_> = responses.iter()
         .filter(|r| r.option_id == confirmed_option.id && r.response == "yes")

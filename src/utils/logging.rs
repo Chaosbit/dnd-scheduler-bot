@@ -1,6 +1,7 @@
 use tracing::{error, info, warn, debug};
 
 /// Logs command start with consistent format
+#[allow(dead_code)]
 pub fn log_command_start(command: &str, user: &str, user_id: i64, chat_id: i64, details: Option<&str>) {
     match details {
         Some(d) => info!(
@@ -15,6 +16,7 @@ pub fn log_command_start(command: &str, user: &str, user_id: i64, chat_id: i64, 
 }
 
 /// Logs command completion with consistent format
+#[allow(dead_code)]
 pub fn log_command_success(command: &str, user: &str, user_id: i64, chat_id: i64, details: Option<&str>) {
     match details {
         Some(d) => info!(
@@ -29,6 +31,7 @@ pub fn log_command_success(command: &str, user: &str, user_id: i64, chat_id: i64
 }
 
 /// Logs command errors with consistent format
+#[allow(dead_code)]
 pub fn log_command_error(command: &str, user: &str, user_id: i64, chat_id: i64, error: &str) {
     error!(
         "CMD_ERROR: {} by {}({}) in chat {} - {}",
@@ -37,6 +40,7 @@ pub fn log_command_error(command: &str, user: &str, user_id: i64, chat_id: i64, 
 }
 
 /// Logs validation errors with consistent format
+#[allow(dead_code)]
 pub fn log_validation_error(command: &str, field: &str, value: &str, error: &str, user: &str, user_id: i64, chat_id: i64) {
     warn!(
         "VALIDATION_ERROR: {} - {} field '{}' invalid: {} - user {}({}) in chat {}",
@@ -45,6 +49,7 @@ pub fn log_validation_error(command: &str, field: &str, value: &str, error: &str
 }
 
 /// Logs database operations with consistent format
+#[allow(dead_code)]
 pub fn log_database_operation(operation: &str, table: &str, details: Option<&str>) {
     match details {
         Some(d) => debug!("DB_OP: {} on {} - {}", operation, table, d),
@@ -53,6 +58,7 @@ pub fn log_database_operation(operation: &str, table: &str, details: Option<&str
 }
 
 /// Logs database errors with consistent format
+#[allow(dead_code)]
 pub fn log_database_error(operation: &str, table: &str, error: &str, details: Option<&str>) {
     match details {
         Some(d) => error!("DB_ERROR: {} on {} failed: {} - {}", operation, table, error, d),
@@ -61,6 +67,7 @@ pub fn log_database_error(operation: &str, table: &str, error: &str, details: Op
 }
 
 /// Logs timeout events with consistent format
+#[allow(dead_code)]
 pub fn log_timeout(operation: &str, duration_secs: u64, details: Option<&str>) {
     match details {
         Some(d) => warn!("TIMEOUT: {} after {}s - {}", operation, duration_secs, d),
@@ -69,6 +76,7 @@ pub fn log_timeout(operation: &str, duration_secs: u64, details: Option<&str>) {
 }
 
 /// Logs system events with consistent format
+#[allow(dead_code)]
 pub fn log_system_event(event: &str, details: Option<&str>) {
     match details {
         Some(d) => info!("SYSTEM: {} - {}", event, d),

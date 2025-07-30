@@ -76,7 +76,7 @@ fn parse_european_date_format(input: &str) -> Result<DateTime<Utc>> {
     };
     
     // Validate ranges more strictly
-    if day < 1 || day > 31 || month < 1 || month > 12 {
+    if !(1..=31).contains(&day) || !(1..=12).contains(&month) {
         return Err(anyhow!("Invalid date values"));
     }
     

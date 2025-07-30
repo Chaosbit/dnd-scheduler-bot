@@ -29,19 +29,17 @@ pub fn validate_telegram_chat_id(chat_id: i64) -> Result<()> {
         return Err(anyhow!("Chat ID cannot be zero"));
     }
     
-    // Small negative numbers are invalid (but allow large negatives for supergroups)
-    if chat_id < 0 && chat_id > -1000000000 {
-        return Err(anyhow!("Invalid group chat ID range"));
-    }
-    
-    // Very large negative IDs (supergroups) should be at least -1000000000000
-    if chat_id < -2147483648 {
-        return Err(anyhow!("Invalid supergroup chat ID range"));
-    }
-    
-    // Positive IDs should be within reasonable range for user chats
+    // Positive IDs should be within reasonable range for user chats (up to 2^31-1)
     if chat_id > 2147483647 {
         return Err(anyhow!("Invalid user chat ID range"));
+    }
+    
+    // Negative IDs can be:
+    // - Group chats: small negative numbers like -12345 (up to around -2^31)
+    // - Supergroups: very large negative numbers starting around -1000000000000
+    // Reject extremely large negative numbers beyond Telegram's known ranges
+    if chat_id < -2000000000000 {
+        return Err(anyhow!("Chat ID out of valid range"));
     }
     
     Ok(())
@@ -115,7 +113,7 @@ pub fn validate_session_id(session_id: &str) -> Result<()> {
     }
     
     // Must start with alphanumeric character
-    if !session_id.chars().next().unwrap().is_alphanumeric() {
+    if !session_id.chars().next().is_some_and(|c| c.is_alphanumeric()) {
         return Err(anyhow!("Session ID must start with a letter or number"));
     }
     

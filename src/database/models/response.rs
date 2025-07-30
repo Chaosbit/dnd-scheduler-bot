@@ -88,8 +88,7 @@ impl Response {
 
         let placeholders = session_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let query = format!(
-            "SELECT id, session_id, option_id, user_id, username, response, created_at FROM responses WHERE session_id IN ({}) ORDER BY session_id, created_at",
-            placeholders
+            "SELECT id, session_id, option_id, user_id, username, response, created_at FROM responses WHERE session_id IN ({placeholders}) ORDER BY session_id, created_at"
         );
 
         let mut query_builder = sqlx::query_as::<_, Response>(&query);

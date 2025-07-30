@@ -36,7 +36,7 @@ pub async fn handle_schedule(
     tracing::debug!("Validating chat_id: {}", chat_id);
     if let Err(e) = validate_telegram_chat_id(chat_id) {
         tracing::warn!("Chat validation failed for chat_id {}: {}", chat_id, e);
-        let error_msg = format!("Invalid chat configuration: {}", e);
+        let error_msg = format!("Invalid chat configuration: {e}");
         let suggestion = "This command can only be used in properly configured chat groups.";
         CommandFeedback::new(bot.clone(), msg.chat.id).validation_error(&error_msg, suggestion).await?;
         progress.error("Failed to create session due to chat validation error").await?;
@@ -46,7 +46,7 @@ pub async fn handle_schedule(
     tracing::debug!("Validating session title: '{}'", title);
     if let Err(e) = validate_session_title(&title) {
         tracing::warn!("Session title validation failed: '{}' - {}", title, e);
-        let error_msg = format!("Invalid session title: {}", e);
+        let error_msg = format!("Invalid session title: {e}");
         let suggestion = "Use a title between 3-100 characters. Example: 'Weekly D&D Session'";
         CommandFeedback::new(bot.clone(), msg.chat.id).validation_error(&error_msg, suggestion).await?;
         progress.error("Failed to create session due to invalid title").await?;
@@ -62,7 +62,7 @@ pub async fn handle_schedule(
         },
         Err(e) => {
             tracing::warn!("Time options validation failed: '{}' - {}", options, e);
-            let error_msg = format!("Invalid time options: {}", e);
+            let error_msg = format!("Invalid time options: {e}");
             let suggestion = "Use formats like 'Friday 19:00, Saturday 14:30'. You can specify multiple times separated by commas.";
             CommandFeedback::new(bot.clone(), msg.chat.id).validation_error(&error_msg, suggestion).await?;
             progress.error("Failed to create session due to invalid time options").await?;
@@ -112,7 +112,7 @@ pub async fn handle_schedule(
         let datetime = match parse_datetime(option_str) {
             Ok(dt) => dt,
             Err(_e) => {
-                let error_msg = format!("Could not parse date/time: '{}'", option_str);
+                let error_msg = format!("Could not parse date/time: '{option_str}'");
                 let suggestion = "Please use formats like 'Friday 19:00', 'Monday 14:30', or 'Tuesday 20:00'";
                 CommandFeedback::new(bot.clone(), msg.chat.id).validation_error(&error_msg, suggestion).await?;
                 progress.error(&format!("Failed to parse time option {}/{}", i + 1, total_options)).await?;

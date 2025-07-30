@@ -122,8 +122,7 @@ impl SessionOption {
 
         let placeholders = session_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let query = format!(
-            "SELECT id, session_id, datetime, duration, confirmed FROM session_options WHERE session_id IN ({}) ORDER BY session_id, datetime",
-            placeholders
+            "SELECT id, session_id, datetime, duration, confirmed FROM session_options WHERE session_id IN ({placeholders}) ORDER BY session_id, datetime"
         );
 
         let mut query_builder = sqlx::query_as::<_, SessionOption>(&query);

@@ -17,7 +17,7 @@ pub async fn handle_settings(
     
     // Validate chat ID
     if let Err(e) = validate_telegram_chat_id(chat_id) {
-        let error_msg = format!("Invalid chat configuration: {}", e);
+        let error_msg = format!("Invalid chat configuration: {e}");
         let suggestion = "This command can only be used in properly configured chat groups.";
         feedback.validation_error(&error_msg, suggestion).await?;
         return Ok(());

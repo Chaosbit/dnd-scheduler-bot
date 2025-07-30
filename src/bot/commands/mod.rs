@@ -15,10 +15,10 @@ fn parse_schedule_args(input: String) -> Result<(String, String), teloxide::util
     }
     
     // Handle case where first argument is quoted
-    if input.starts_with('"') {
+    if let Some(stripped) = input.strip_prefix('"') {
         // Find the closing quote for the first argument
-        if let Some(closing_quote_pos) = input[1..].find('"') {
-            let title = input[1..closing_quote_pos + 1].to_string();
+        if let Some(closing_quote_pos) = stripped.find('"') {
+            let title = stripped[..closing_quote_pos].to_string();
             let rest = input[closing_quote_pos + 2..].trim();
             
             // Allow empty options for quoted title case
@@ -72,6 +72,22 @@ fn parse_deadline_args(input: String) -> Result<(String, String), teloxide::util
     }
 }
 
+fn parse_confirm_args(input: String) -> Result<(String,), teloxide::utils::command::ParseError> {
+    let session_id = input.trim();
+    if session_id.is_empty() {
+        return Err(teloxide::utils::command::ParseError::IncorrectFormat("Expected: /confirm <session_id>".into()));
+    }
+    Ok((session_id.to_string(),))
+}
+
+fn parse_cancel_args(input: String) -> Result<(String,), teloxide::utils::command::ParseError> {
+    let session_id = input.trim();
+    if session_id.is_empty() {
+        return Err(teloxide::utils::command::ParseError::IncorrectFormat("Expected: /cancel <session_id>".into()));
+    }
+    Ok((session_id.to_string(),))
+}
+
 #[derive(BotCommands, Clone, Debug)]
 #[command(description = "D&D Scheduler Bot commands:", rename_rule = "lowercase")]
 pub enum Command {
@@ -81,9 +97,9 @@ pub enum Command {
     Start,
     #[command(description = "Create a new session poll", parse_with = parse_schedule_args)]
     Schedule { title: String, options: String },
-    #[command(description = "Confirm a session and set it as final")]
+    #[command(description = "Confirm a session and set it as final", parse_with = parse_confirm_args)]
     Confirm { session_id: String },
-    #[command(description = "Cancel a session")]
+    #[command(description = "Cancel a session", parse_with = parse_cancel_args)]
     Cancel { session_id: String },
     #[command(description = "Set a deadline for responses", parse_with = parse_deadline_args)]
     Deadline { session_id: String, datetime: String },

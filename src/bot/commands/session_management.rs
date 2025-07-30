@@ -46,7 +46,7 @@ pub async fn handle_confirm(
         Ok(None) => {
             tracing::warn!("Session not found: '{}'", session_id);
             let error_msg = "Session not found";
-            let suggestion = format!("Please check the session ID. Use /list to see active sessions.");
+            let suggestion = "Please check the session ID. Use /list to see active sessions.".to_string();
             feedback.validation_error(error_msg, &suggestion).await?;
             return Ok(());
         }
@@ -354,7 +354,7 @@ pub async fn handle_deadline(
             dt
         },
         Err(_) => {
-            let error_msg = format!("Could not parse deadline: '{}'", datetime);
+            let error_msg = format!("Could not parse deadline: '{datetime}'");
             let suggestion = "Please use formats like 'Friday 19:00', 'Monday 14:30', or 'Tuesday 20:00'";
             feedback.validation_error(&error_msg, suggestion).await?;
             return Ok(());

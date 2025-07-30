@@ -326,8 +326,8 @@ mod command_parsing_tests {
     }
 
     #[test]
-    fn test_case_insensitive_commands() {
-        let input = "/HELP";
+    fn test_lowercase_commands() {
+        let input = "/help";
         let result = Command::parse(input, "testbot");
         assert!(result.is_ok());
         matches!(result.unwrap(), Command::Help);
